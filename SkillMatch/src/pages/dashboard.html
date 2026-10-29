@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicadores del mercado laboral - SkillMatch Cartagena</title>
+    <meta name="description" content="Cifras de las vacantes publicadas en SkillMatch: tipo de trabajo, modalidad, experiencia, salario, ciudades y habilidades más pedidas.">
+    <meta property="og:title" content="Indicadores del mercado laboral">
+    <meta property="og:description" content="Qué tipo de trabajo hay, dónde, cómo y qué piden las empresas, con los datos de hoy.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_CO">
+    <!-- Las redes necesitan la direccion completa (la del sitio en Render) -->
+    <meta property="og:image" content="https://skillmatch-yz37.onrender.com/assets/img/compartir.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="SkillMatch: el trabajo que buscas ya está en Cartagena">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../assets/img/favicon/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="../assets/img/favicon/favicon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="../assets/img/favicon/apple-touch-icon.png">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#EDF2F8">
+    <script>(function(){var t=localStorage.getItem('skillmatch_theme');if(t!=='dark'&&t!=='light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('skillmatch_letra');if(l==='grande'||l==='muy-grande')document.documentElement.setAttribute('data-letra',l);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#0B1B2C':'#EDF2F8');})();</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+    <header>
+        <nav class="container" aria-label="Principal">
+            <div class="nav-left">
+                <div class="logo">
+                    <a href="index.html" aria-label="SkillMatch, ir al inicio"><img src="../assets/img/logo.png" alt="SkillMatch" width="300" height="100"></a>
+                </div>
+                <ul class="nav-links nav-principales">
+                    <li><a href="index.html">Inicio</a></li>
+                    <li><a href="oportunidades.html">Vacantes</a></li>
+                    <li><a href="index.html#como-funciona">Cómo funciona</a></li>
+                    <li><a href="empresas.html">Empresas</a></li>
+                </ul>
+            </div>
+            <ul class="nav-links">
+                <li><a href="login.html" class="btn-login">Iniciar sesión</a></li>
+                <li><a href="seleccionar-registro.html" class="btn-register">Unirse ahora</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="main">
+        <section class="indicadores-cabecera">
+            <div class="container">
+                <h1>Indicadores del mercado laboral</h1>
+                <p>Qué tipo de trabajo hay, dónde, cómo y qué piden las empresas, según las vacantes publicadas en
+                   SkillMatch. Se calculan con los datos de hoy cada vez que abres esta página.</p>
+            </div>
+        </section>
+
+        <!-- indicadores.js llena todo con los datos publicos del sitio. -->
+        <section class="indicadores" id="indicadores" aria-busy="true">
+            <div class="container">
+                <div class="indicadores-error" id="indicadoresError" role="alert" hidden>
+                    <p>No pudimos cargar los indicadores. Revisa tu conexión e intenta de nuevo.</p>
+                    <button type="button" class="btn btn-secondary btn-small" id="indicadoresReintentar">Intentar de nuevo</button>
+                </div>
+
+                <ul class="indicadores-cifras" aria-label="Cifras generales">
+                    <li><span class="ic-valor" data-cifra="vacantes">–</span><span class="ic-nombre">Vacantes abiertas</span></li>
+                    <li><span class="ic-valor" data-cifra="companies">–</span><span class="ic-nombre">Empresas registradas</span></li>
+                    <li><span class="ic-valor" data-cifra="users">–</span><span class="ic-nombre">Personas registradas</span></li>
+                    <li><span class="ic-valor" data-cifra="applications">–</span><span class="ic-nombre">Postulaciones enviadas</span></li>
+                </ul>
+                <p class="indicadores-promedio" id="indicadoresPromedio"></p>
+
+                <!-- Sin vacantes abiertas: un aviso en lugar de graficas en cero (indicadores.js) -->
+                <div class="indicadores-vacio" id="indicadoresVacio" hidden>
+                    <h2>Todavía no hay vacantes abiertas</h2>
+                    <p>Cuando las empresas publiquen sus vacantes, aquí verás qué tipo de trabajo hay, dónde, cómo, cuánto pagan y qué habilidades piden.</p>
+                    <a class="btn btn-secondary" id="indicadoresVacioAccion" href="registro-empresa.html">¿Tienes una empresa? Publica la primera</a>
+                </div>
+
+                <div class="indicadores-grid">
+                    <article class="indicador" aria-labelledby="indTipoTitulo">
+                        <h2 id="indTipoTitulo">Tipo de trabajo</h2>
+                        <p class="indicador-nota">Cuántas vacantes abiertas hay de cada tipo.</p>
+                        <div class="dona-caja">
+                            <div class="dona" id="indTipoDona" aria-hidden="true"></div>
+                            <ul class="ib-lista dona-leyenda" id="indTipo"></ul>
+                        </div>
+                    </article>
+                    <article class="indicador" aria-labelledby="indModalidadTitulo">
+                        <h2 id="indModalidadTitulo">Dónde se trabaja</h2>
+                        <p class="indicador-nota">En el sitio de trabajo, desde casa o una mezcla de los dos.</p>
+                        <div class="dona-caja">
+                            <div class="dona" id="indModalidadDona" aria-hidden="true"></div>
+                            <ul class="ib-lista dona-leyenda" id="indModalidad"></ul>
+                        </div>
+                    </article>
+                    <article class="indicador" aria-labelledby="indExperienciaTitulo">
+                        <h2 id="indExperienciaTitulo">Experiencia que piden</h2>
+                        <p class="indicador-nota">Cuánta experiencia piden las empresas.</p>
+                        <ul class="ib-lista" id="indExperiencia"></ul>
+                    </article>
+                    <article class="indicador" aria-labelledby="indSalarioTitulo">
+                        <h2 id="indSalarioTitulo">Salario que ofrecen</h2>
+                        <p class="indicador-nota">Según el valor más bajo del rango que publica cada empresa.</p>
+                        <ul class="ib-lista" id="indSalario"></ul>
+                    </article>
+                    <article class="indicador" aria-labelledby="indCiudadesTitulo">
+                        <h2 id="indCiudadesTitulo">Ciudades con más vacantes</h2>
+                        <p class="indicador-nota" id="indCiudadesNota">Cartagena va en naranja.</p>
+                        <ul class="ib-lista" id="indCiudades"></ul>
+                    </article>
+                    <article class="indicador" aria-labelledby="indHabilidadesTitulo">
+                        <h2 id="indHabilidadesTitulo">Habilidades más pedidas</h2>
+                        <p class="indicador-nota">En las 200 vacantes más recientes. Toca una para ver sus vacantes.</p>
+                        <ul class="ib-lista" id="indHabilidades"></ul>
+                    </article>
+                </div>
+
+                <p class="indicadores-hora" id="indicadoresHora"></p>
+
+                <aside class="indicadores-powerbi" aria-labelledby="indTendenciasTitulo">
+                    <div>
+                        <h2 id="indTendenciasTitulo">Tendencias y pronóstico</h2>
+                        <p>Qué habilidades faltan, qué empresas publican más y cuántas vacantes y postulaciones se esperan en las próximas semanas.</p>
+                    </div>
+                    <a class="btn btn-primary btn-small" href="tendencias.html">Ver tendencias <i data-ico="arrow"></i></a>
+                </aside>
+            </div>
+        </section>
+    </main>
+
+    <!-- Pie de pagina: ui.js dibuja aqui el pie grande (este texto es el respaldo) -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 SkillMatch Cartagena. Hecho para conectar a las personas y las empresas de la ciudad.</p>
+        </div>
+    </footer>
+
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/indicadores.js"></script>
+    <script src="../assets/js/ui.js"></script>
+</body>
+</html>
