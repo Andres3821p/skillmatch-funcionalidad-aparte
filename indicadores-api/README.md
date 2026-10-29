@@ -1,31 +1,45 @@
 # SkillMatch · Servicio de indicadores y pronóstico
 
-API aparte (Python + FastAPI) que lee la base de datos de SkillMatch, calcula indicadores del
-mercado laboral y entrena un modelo predictivo. La página `tendencias.html` la consume por HTTP.
+API aparte (Python + FastAPI) que calcula indicadores del mercado laboral de SkillMatch, entrena dos modelos
+predictivos y sirve la página de tendencias en `/`.
 
 ```
- MongoDB Atlas ──(solo lectura)──▶ indicadores-api (FastAPI) ──JSON──▶ tendencias.html + tendencias.js
-        ▲                                                                (HTML/CSS/JS del proyecto)
-        └── backend Java (Spring Boot): sigue igual, no se toca
+API pública de SkillMatch (por defecto) ─┐
+MongoDB Atlas (solo lectura, opcional) ──┼──▶ indicadores-api ──▶ /               página (web/)
+Datos de demostración (MODO_DEMO=1) ─────┘                    └─▶ /api/indicadores/...  JSON
 ```
 
 No cambia nada del backend Java: este servicio es independiente y solo **lee**.
 
+## Fuentes de datos
+
+| `FUENTE` | Cuándo se usa | Qué hace falta |
+|---|---|---|
+| `api` | Por defecto | Nada. Lee `SKILLMATCH_API` (https://skillmatch-yz37.onrender.com/api): `/public/stats`, todas las páginas de `/jobs` y `/companies` |
+| `mongo` | Si hay `MONGODB_URI` | Un usuario de MongoDB Atlas de **solo lectura** |
+| `demo` | Si `MODO_DEMO=1` | Nada. Datos inventados con tendencia; la página avisa siempre |
+
+Con la fuente `api` la API pública no entrega datos privados (habilidades de las personas, estado y fecha de
+cada postulación, vacantes cerradas). Esos endpoints responden `{"disponible": false, "motivo": "..."}` y la página
+muestra el motivo. Los datos se guardan 15 minutos y se renuevan en segundo plano: ninguna visita espera las ~40
+consultas al sitio, salvo la primera tras arrancar (que además se adelanta al arrancar el servicio).
+
 ## Qué calcula
 
-| Endpoint (`/api/indicadores/...`) | Qué devuelve |
-|---|---|
-| `resumen` | Vacantes abiertas, empresas activas, postulaciones por vacante, días en responder, fuente de datos |
-| `habilidades-demandadas` | Habilidades más pedidas en vacantes abiertas |
-| `empresas-activas` | Empresas con más vacantes en los últimos 90 días (y postulaciones recibidas) |
-| `habilidades-usuarios` | Habilidades más frecuentes entre las personas (solo totales; se oculta lo que tienen menos de 3) |
-| `brecha-habilidades` | % de vacantes que piden una habilidad vs. % de personas que la tienen |
-| `salarios` | Mediana del salario mínimo publicado, por nivel de experiencia |
-| `postulaciones-estado` | Pendientes, revisadas, aceptadas, rechazadas |
-| `series` | Vacantes y postulaciones por semana |
-| `pronostico/vacantes`, `pronostico/postulaciones` | **Modelo 1:** pronóstico semanal con rango probable |
-| `tendencia-habilidades` | **Modelo 2:** habilidades que suben o bajan, con etiqueta de evidencia |
-| `salud` | Health check (no toca la base) |
+| Endpoint (`/api/indicadores/...`) | Qué devuelve | Con `api` |
+|---|---|:-:|
+| *(raíz)* | Versión y fuente de datos | Sí |
+| `resumen` | Vacantes abiertas, empresas activas, personas, postulaciones por vacante, días en responder, fuente | Sí (sin días en responder) |
+| `habilidades-demandadas` | Habilidades más pedidas en vacantes abiertas | Sí |
+| `empresas-activas` | Empresas con más vacantes en los últimos 90 días (y postulaciones recibidas) | Sí (sin postulaciones) |
+| `habilidades-usuarios` | Habilidades más frecuentes entre las personas (solo totales; se oculta lo que tienen menos de 3) | No |
+| `brecha-habilidades` | % de vacantes que piden una habilidad vs. % de personas que la tienen | No |
+| `salarios` | Mediana del salario mínimo publicado, por nivel de experiencia | Sí |
+| `postulaciones-estado` | Pendientes, revisadas, aceptadas, rechazadas | No |
+| `series` | Vacantes y postulaciones por semana | Solo vacantes |
+| `pronostico/vacantes`, `pronostico/postulaciones` | **Modelo 1:** pronóstico semanal con rango probable | Solo vacantes |
+| `tendencia-habilidades` | **Modelo 2:** habilidades que suben o bajan, con etiqueta de evidencia | Sí |
+| `salud` | Health check (no toca la fuente de datos) | Sí |
 
 Documentación interactiva: `http://localhost:8000/docs`.
 
@@ -57,70 +71,47 @@ porcentajes, cada cambio lleva una etiqueta: **firme** si sobrevive al control d
 - Si el historial es corto o plano, el pronóstico cae al promedio y la API lo dice en `lectura`.
 - Los datos que crea `DataSeeder.java` son aleatorios y uniformes: sobre ellos ningún modelo encontrará
   tendencia real. Con datos reales de uso el pronóstico se vuelve informativo.
-- Con `MODO_DEMO=1` (o sin `MONGODB_URI`) se usan datos **inventados** con tendencia; la API y la
-  página avisan siempre que son de demostración.
+- Con la fuente `api` solo se ven las vacantes que **siguen abiertas**: las semanas antiguas pueden verse más
+  bajas porque las cerradas ya no aparecen. La respuesta lo dice en `nota` y la página lo muestra.
+- Con `MODO_DEMO=1` se usan datos **inventados** con tendencia; la API y la página avisan siempre.
 
-## Privacidad
+## Privacidad y seguridad
 
-- De los usuarios solo se leen los **nombres de sus habilidades** (sin nombre, correo ni ids).
-- Las postulaciones se leen sin carta, hoja de vida ni notas.
-- La API no tiene endpoints de escritura. Usa en Atlas un usuario de base de datos **solo lectura**.
-- Si Mongo falla, el error al navegador no incluye la cadena de conexión.
+- Con la fuente `api` solo se usan rutas públicas del sitio; el correo y el teléfono de las empresas ya llegan
+  ocultos desde el backend.
+- Con Mongo, de los usuarios solo se leen los **nombres de sus habilidades** (sin nombre, correo ni ids) y las
+  postulaciones se leen sin carta, hoja de vida ni notas. Usa en Atlas un usuario **solo lectura**.
+- La API no tiene endpoints de escritura. Si la fuente falla, el error al navegador no incluye detalles.
+- La página lleva las mismas cabeceras que el sitio principal: CSP (`script-src 'self'`, `connect-src 'self'`),
+  `nosniff`, `Referrer-Policy` y `X-Frame-Options`.
 
 ## Probarlo en tu PC
 
-```bash
+```powershell
 cd indicadores-api
-python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-pytest                                                   # 38 pruebas
-
-# 1) Con datos de demostración (sin base de datos)
-MODO_DEMO=1 uvicorn app.main:app --reload --port 8000     # Windows PowerShell: $env:MODO_DEMO=1; uvicorn ...
-
-# 2) Con tu MongoDB (el mismo de la app)
-MONGODB_URI="mongodb+srv://usuario_lectura:clave@cluster0.xxxxx.mongodb.net/skillmatch" \
-  uvicorn app.main:app --port 8000
+.\iniciar.ps1          # datos en vivo de SkillMatch -> http://localhost:8000
+.\iniciar.ps1 -Demo    # datos inventados
+.\.venv\Scripts\python -m pytest    # 57 pruebas
 ```
 
-Luego abre el frontend con Live Server (`SkillMatch/src/pages/tendencias.html`). `indicadores-config.js` detecta
-que estás en local y llama a `http://localhost:8000`.
+En macOS o Linux:
 
-## Integrarlo al proyecto
-
-1. Copia a tu repositorio, respetando las carpetas:
-   - `indicadores-api/` (carpeta nueva, en la raíz)
-   - `SkillMatch/src/pages/tendencias.html`
-   - `SkillMatch/src/assets/js/tendencias.js`, `indicadores-config.js` e `indicadores-inicio.js`
-   - `SkillMatch/src/assets/css/tendencias.css`
-   - `SkillMatch/src/pages/dashboard.html` (solo añade un enlace a la página nueva)
-2. En producción, en `assets/js/indicadores-config.js` pon la dirección del servicio en `API_INDICADORES`.
-3. En el servicio, `ALLOWED_ORIGINS` = la URL del sitio (CORS).
-
-La política de seguridad (CSP) de `SecurityConfig.java` ya permite `connect-src https:`, así que el
-sitio puede llamar a la API publicada sin tocar el backend. `tendencias.css` solo usa los tokens de
-`app.css`; si prefieres un único archivo, pega su contenido al final de `app.css`.
+```bash
+cd indicadores-api
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest
+uvicorn app.main:app --reload --port 8000             # FUENTE=demo para datos inventados
+```
 
 ## Desplegar en Render (plan gratuito)
 
-Añade un segundo servicio a `render.yaml`:
+`render.yaml` (en la raíz del repositorio) crea el servicio `skillmatch-indicadores` con Docker. En Render:
+**New → Blueprint**, elegir el repositorio y **Apply**. No hace falta ninguna variable. Para usar Mongo, agregar
+`MONGODB_URI` (usuario de solo lectura) en **Environment**.
 
-```yaml
-  - type: web
-    name: skillmatch-indicadores
-    runtime: docker
-    dockerfilePath: ./indicadores-api/Dockerfile
-    dockerContext: ./indicadores-api
-    healthCheckPath: /api/indicadores/salud
-    envVars:
-      - key: MONGODB_URI        # usuario de SOLO LECTURA
-        sync: false
-      - key: ALLOWED_ORIGINS
-        value: https://skillmatch-yz37.onrender.com
-```
-
-En el plan gratuito el servicio se duerme tras 15 minutos y la primera visita tarda hasta un minuto:
-la página muestra un aviso mientras despierta.
+En el plan gratuito el servicio se duerme tras 15 minutos; la primera visita puede tardar y la página muestra
+un aviso mientras despierta.
 
 ## Ideas para seguir
 
@@ -135,12 +126,14 @@ la página muestra un aviso mientras despierta.
 ```
 indicadores-api/
 ├── app/
-│   ├── main.py          # endpoints FastAPI y CORS
-│   ├── datos.py         # lectura de MongoDB (solo lectura) y caché
+│   ├── main.py          # endpoints FastAPI, cabeceras de seguridad y la página en /
+│   ├── config.py        # variables de entorno y elección de la fuente
+│   ├── fuente_api.py    # lectura de la API pública de SkillMatch
+│   ├── datos.py         # lectura de MongoDB (solo lectura), caché y renovación en segundo plano
 │   ├── indicadores.py   # cálculo de indicadores (funciones puras)
 │   ├── prediccion.py    # modelos predictivos
-│   ├── demo.py          # datos de demostración
-│   └── config.py        # variables de entorno
-├── tests/               # 38 pruebas (incluye lectura con una Mongo simulada)
-├── Dockerfile · requirements.txt · requirements-dev.txt · .env.example
+│   └── demo.py          # datos de demostración
+├── web/                 # la página (index.html + assets; app.css es el del sitio principal)
+├── tests/               # 57 pruebas (API de SkillMatch y MongoDB simuladas)
+├── Dockerfile · requirements.txt · requirements-dev.txt · iniciar.ps1 · .env.example
 ```

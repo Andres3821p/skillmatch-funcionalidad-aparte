@@ -1,0 +1,17 @@
+# Despliegue en Render (plan gratuito) con "New > Blueprint" apuntando a este repositorio.
+# No necesita ninguna clave: lee la API publica del sitio en vivo de SkillMatch.
+services:
+  - type: web
+    name: skillmatch-indicadores
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./indicadores-api/Dockerfile
+    dockerContext: ./indicadores-api
+    healthCheckPath: /api/indicadores/salud
+    autoDeploy: true
+    envVars:
+      - key: SKILLMATCH_API
+        value: https://skillmatch-yz37.onrender.com/api
+      # Opcional: si algun dia tienes un usuario de MongoDB de SOLO LECTURA, agregalo en
+      # Render (Environment) como MONGODB_URI y se activan todos los indicadores.

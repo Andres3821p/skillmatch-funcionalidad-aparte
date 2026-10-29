@@ -144,7 +144,8 @@ def pronostico_semanal(serie: list[dict], horizonte: int = 4, unidad: str = "vac
             "mejora_pct": mejora,
             "modelos": [{"id": k, "nombre": MODELOS[k][0], "mae": round(v, 2)} for k, v in mae.items()],
         },
-        "historico": serie,
+        # La grafica empieza en la primera semana con datos (antes la plataforma aun no tenia nada)
+        "historico": serie[next((i for i, p in enumerate(serie) if p["valor"] > 0), 0):],
         "pronostico": puntos,
     }
 

@@ -177,3 +177,10 @@
     .inicio-ind-cuerpo { grid-template-columns: minmax(0, 1fr); }
 }
 .indicadores-inicio .tend-aviso { margin: 0 0 var(--s4); }
+
+/* ---------- Página servida por el servicio de indicadores ---------- */
+.tend-aviso.tend-fuente { border-color: var(--sea); background: var(--sea-light); color: var(--ink-2); }
+.grafica-nota { margin-top: var(--s3); font-size: var(--t-xs); color: var(--ink-muted); max-width: 62ch; }
+#cambiarTema { cursor: pointer; }
+footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.brecha-columnas:has(> [hidden]) { grid-template-columns: minmax(0, 1fr); }

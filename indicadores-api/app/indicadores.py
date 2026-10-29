@@ -14,6 +14,17 @@ MIN_PERSONAS = 3
 # La brecha solo es confiable con una base minima de personas y de vacantes
 MIN_BASE_BRECHA = 10
 
+# Lo que la API publica no entrega (fuente "api"). Se dice claro en la pagina en lugar de
+# mostrar ceros o inventar cifras.
+MOTIVO_PERSONAS = ("La API pública de SkillMatch no comparte las habilidades de las personas: es información "
+                   "privada. Este indicador se activa cuando el servicio lee la base de datos con un usuario de "
+                   "solo lectura.")
+MOTIVO_POSTULACIONES = ("La API pública solo da el total de postulaciones, no el estado ni la fecha de cada una. "
+                        "Este indicador se activa cuando el servicio lee la base de datos con un usuario de solo "
+                        "lectura.")
+NOTA_SOLO_ABIERTAS = ("Solo cuenta las vacantes que siguen abiertas: las cerradas ya no aparecen en la API pública, "
+                      "así que las semanas más antiguas pueden verse más bajas de lo que fueron.")
+
 NIVELES = [("sin-experiencia", "Sin experiencia"), ("junior", "Hasta 1 año"),
            ("semi-senior", "De 1 a 3 años"), ("senior", "Más de 3 años")]
 
@@ -53,9 +64,12 @@ def habilidades_demandadas(d: Datos, top: int = 10) -> dict:
 
 
 def habilidades_usuarios(d: Datos, top: int = 10) -> dict:
+    if not d.con_personas:
+        return {"disponible": False, "motivo": MOTIVO_PERSONAS, "base": 0, "items": []}
     ranking, total = contar_habilidades(d.habilidades_usuarios)
     visibles = [(n, v) for n, v in ranking if v >= MIN_PERSONAS]
-    return {"base": total, "unidad": "personas registradas", "items": _barras(visibles, total, top)}
+    return {"disponible": True, "base": total, "unidad": "personas registradas",
+            "items": _barras(visibles, total, top)}
 
 
 def empresas_activas(d: Datos, top: int = 10, hoy: datetime | None = None, dias: int = 90) -> dict:
@@ -66,6 +80,7 @@ def empresas_activas(d: Datos, top: int = 10, hoy: datetime | None = None, dias:
     recientes = v[(v["publicada"] >= desde) & v["activa"]]
     por_empresa = recientes.groupby("empresa_id").size()
     abiertas = d.abiertas.groupby("empresa_id").size()
+    con_post = d.con_postulaciones
     recibidas = (d.postulaciones.merge(v[["id", "empresa_id"]], left_on="vacante_id", right_on="id", how="inner")
                  .groupby("empresa_id").size())
     nombres = d.empresas.set_index("id")["nombre"].to_dict()
@@ -76,8 +91,9 @@ def empresas_activas(d: Datos, top: int = 10, hoy: datetime | None = None, dias:
             continue  # vacantes de una empresa que ya no existe
         filas.append({"nombre": nombres[emp_id], "sector": sectores.get(emp_id, ""),
                       "valor": int(n), "abiertas": int(abiertas.get(emp_id, 0)),
-                      "postulaciones": int(recibidas.get(emp_id, 0))})
-    filas.sort(key=lambda f: (-f["valor"], -f["postulaciones"], f["nombre"].lower()))
+                      # Sin la lista de postulaciones (fuente "api") no se sabe cuantas recibio cada una
+                      "postulaciones": int(recibidas.get(emp_id, 0)) if con_post else None})
+    filas.sort(key=lambda f: (-f["valor"], -(f["postulaciones"] or 0), f["nombre"].lower()))
     total = int(por_empresa.sum())
     for f in filas:
         f["porcentaje"] = _pct(f["valor"], total)
@@ -89,6 +105,8 @@ def empresas_activas(d: Datos, top: int = 10, hoy: datetime | None = None, dias:
 def brecha_habilidades(d: Datos, top: int = 5) -> dict:
     """Que piden las empresas y cuantas personas lo tienen. Diferencia en puntos porcentuales:
     (% de vacantes que la piden) - (% de personas que la tienen). Positivo = hace falta."""
+    if not d.con_personas:
+        return {"disponible": False, "motivo": MOTIVO_PERSONAS}
     demanda, n_v = contar_habilidades(d.abiertas["habilidades"])
     oferta, n_p = contar_habilidades(d.habilidades_usuarios)
     if n_v < MIN_BASE_BRECHA or n_p < MIN_BASE_BRECHA:
@@ -130,8 +148,11 @@ def serie_semanal(fechas: pd.Series, hoy: datetime, semanas: int = 26) -> list[d
 
 def series(d: Datos, hoy: datetime | None = None, semanas: int = 26) -> dict:
     hoy = hoy or d.cargado
-    return {"vacantes": serie_semanal(d.vacantes.loc[d.vacantes["activa"], "publicada"], hoy, semanas),
-            "postulaciones": serie_semanal(d.postulaciones["fecha"], hoy, semanas)}
+    r = {"vacantes": serie_semanal(d.vacantes.loc[d.vacantes["activa"], "publicada"], hoy, semanas),
+         "postulaciones": serie_semanal(d.postulaciones["fecha"], hoy, semanas) if d.con_postulaciones else []}
+    if d.fuente == "api":
+        r["nota"] = NOTA_SOLO_ABIERTAS
+    return r
 
 
 # ---------------------------------------------------------------- otros indicadores
@@ -148,25 +169,33 @@ def salarios_por_experiencia(d: Datos) -> dict:
 
 
 def embudo_postulaciones(d: Datos) -> dict:
+    if not d.con_postulaciones:
+        return {"disponible": False, "motivo": MOTIVO_POSTULACIONES, "base": 0, "items": []}
     cuenta = d.postulaciones["estado"].value_counts().to_dict()
     total = int(sum(cuenta.values()))
     orden = [("pendiente", "Pendientes"), ("revisada", "Revisadas"),
              ("aceptada", "Aceptadas"), ("rechazada", "Rechazadas")]
-    return {"base": total, "items": [{"nombre": n, "valor": int(cuenta.get(k, 0)),
+    return {"disponible": True, "base": total, "items": [{"nombre": n, "valor": int(cuenta.get(k, 0)),
                                        "porcentaje": _pct(cuenta.get(k, 0), total)} for k, n in orden]}
 
 
 def resumen(d: Datos) -> dict:
     abiertas = d.abiertas
     n_ab = int(len(abiertas))
-    n_post = int(len(d.postulaciones))
-    p = d.postulaciones
-    respuesta = (p["revisada"] - p["fecha"]).dropna().dt.total_seconds() / 86400
-    respuesta = respuesta[respuesta >= 0]
+    t = d.totales
+    if d.con_postulaciones:
+        p = d.postulaciones
+        n_post = int(len(p))
+        respuesta = (p["revisada"] - p["fecha"]).dropna().dt.total_seconds() / 86400
+        respuesta = respuesta[respuesta >= 0]
+    else:
+        # Fuente "api": el total sale de /public/stats; el tiempo de respuesta no se puede saber
+        n_post = int(t.get("applications", 0))
+        respuesta = pd.Series(dtype=float)
     return {
         "vacantes_abiertas": n_ab,
-        "empresas_activas": int(d.empresas["activa"].sum()),
-        "personas": int(len(d.habilidades_usuarios)),
+        "empresas_activas": int(t["companies"]) if "companies" in t else int(d.empresas["activa"].sum()),
+        "personas": int(t["users"]) if "users" in t else int(len(d.habilidades_usuarios)),
         "postulaciones": n_post,
         "postulaciones_por_vacante": round(n_post / n_ab, 1) if n_ab else None,
         "dias_mediana_respuesta": round(float(respuesta.median()), 1) if len(respuesta) else None,

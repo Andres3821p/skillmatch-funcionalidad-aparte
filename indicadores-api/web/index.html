@@ -4,41 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tendencias y pronóstico - SkillMatch Cartagena</title>
-    <meta name="description" content="Qué habilidades piden las empresas, cuáles tienen las personas, qué empresas publican más y cuántas vacantes y postulaciones se esperan en las próximas semanas.">
+    <meta name="description" content="Qué habilidades piden las empresas, qué empresas publican más y cuántas vacantes se esperan en las próximas semanas, con los datos en vivo de SkillMatch.">
     <meta property="og:title" content="Tendencias y pronóstico del mercado laboral">
-    <meta property="og:description" content="Habilidades que faltan, empresas más activas y un pronóstico de vacantes y postulaciones.">
+    <meta property="og:description" content="Habilidades más pedidas, empresas más activas y un pronóstico de vacantes, con los datos de SkillMatch.">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="es_CO">
-    <link rel="icon" href="../assets/img/favicon/favicon-32.png" type="image/png" sizes="32x32">
-    <link rel="icon" href="../assets/img/favicon/favicon-192.png" type="image/png" sizes="192x192">
-    <link rel="apple-touch-icon" href="../assets/img/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../manifest.json">
+    <link rel="icon" href="assets/img/favicon/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="assets/img/favicon/favicon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="assets/img/favicon/apple-touch-icon.png">
     <meta name="theme-color" content="#EDF2F8">
-    <script>(function(){var t=localStorage.getItem('skillmatch_theme');if(t!=='dark'&&t!=='light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('skillmatch_letra');if(l==='grande'||l==='muy-grande')document.documentElement.setAttribute('data-letra',l);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#0B1B2C':'#EDF2F8');})();</script>
+    <script src="assets/js/tema.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="../assets/css/app.css">
-    <link rel="stylesheet" href="../assets/css/tendencias.css">
+    <link rel="stylesheet" href="assets/css/app.css">
+    <link rel="stylesheet" href="assets/css/tendencias.css">
 </head>
-<body>
+<body class="pagina-vidrio">
+    <!-- Fondo vivo del vidrio (app.css): las manchas de la marca, igual que en SkillMatch -->
+    <div class="fondo-vivo" aria-hidden="true"><span class="mancha-1"></span><span class="mancha-2"></span><span class="mancha-3"></span><span class="mancha-4"></span><span class="mancha-5"></span></div>
     <a class="skip-link" href="#main">Saltar al contenido</a>
     <header>
         <nav class="container" aria-label="Principal">
             <div class="nav-left">
                 <div class="logo">
-                    <a href="index.html" aria-label="SkillMatch, ir al inicio"><img src="../assets/img/logo.png" alt="SkillMatch" width="300" height="100"></a>
+                    <a href="https://skillmatch-yz37.onrender.com/" aria-label="SkillMatch, ir al inicio"><img src="assets/img/logo.png" alt="SkillMatch" width="300" height="100"></a>
                 </div>
                 <ul class="nav-links nav-principales">
-                    <li><a href="index.html">Inicio</a></li>
-                    <li><a href="oportunidades.html">Vacantes</a></li>
-                    <li><a href="index.html#como-funciona">Cómo funciona</a></li>
-                    <li><a href="empresas.html">Empresas</a></li>
+                    <li><a href="https://skillmatch-yz37.onrender.com/">Inicio</a></li>
+                    <li><a href="https://skillmatch-yz37.onrender.com/pages/oportunidades.html">Vacantes</a></li>
+                    <li><a href="https://skillmatch-yz37.onrender.com/pages/empresas.html">Empresas</a></li>
+                    <li><a href="https://skillmatch-yz37.onrender.com/pages/dashboard.html">Indicadores</a></li>
                 </ul>
             </div>
             <ul class="nav-links">
-                <li><a href="login.html" class="btn-login">Iniciar sesión</a></li>
-                <li><a href="seleccionar-registro.html" class="btn-register">Unirse ahora</a></li>
+                <li><button type="button" class="btn-login" id="cambiarTema" aria-pressed="false">Modo oscuro</button></li>
+                <li><a href="https://skillmatch-yz37.onrender.com/" class="btn-register">Ir a SkillMatch</a></li>
             </ul>
         </nav>
     </header>
@@ -47,9 +48,10 @@
         <section class="indicadores-cabecera">
             <div class="container">
                 <h1>Tendencias y pronóstico</h1>
-                <p>Qué habilidades piden las empresas, cuáles tienen las personas y qué se espera en las próximas semanas.</p>
+                <p>Qué habilidades piden las empresas, quién publica más y qué se espera en las próximas semanas, con los datos de SkillMatch.</p>
+                <p class="tend-aviso tend-fuente" id="tendFuente" role="status" hidden></p>
                 <p class="tend-aviso" id="tendAviso" role="status" hidden></p>
-                <p class="tend-aviso tend-espera" id="tendEspera" role="status" hidden>El servicio estaba dormido y está despertando. Puede tardar hasta un minuto.</p>
+                <p class="tend-aviso tend-espera" id="tendEspera" role="status" hidden>Estamos leyendo los datos de SkillMatch. Si el sitio estaba dormido puede tardar hasta un par de minutos la primera vez.</p>
             </div>
         </section>
 
@@ -60,7 +62,7 @@
                     <li><span class="ic-valor" data-cifra="vacantes_abiertas">–</span><span class="ic-nombre">Vacantes abiertas</span></li>
                     <li><span class="ic-valor" data-cifra="empresas_activas">–</span><span class="ic-nombre">Empresas activas</span></li>
                     <li><span class="ic-valor" data-cifra="postulaciones_por_vacante">–</span><span class="ic-nombre">Postulaciones por vacante</span></li>
-                    <li><span class="ic-valor" data-cifra="dias_mediana_respuesta">–</span><span class="ic-nombre">Días en responder (mediana)</span></li>
+                    <li><span class="ic-valor" data-cifra="dias_mediana_respuesta" id="cifraCuarta">–</span><span class="ic-nombre" id="cifraCuartaNombre">Días en responder (mediana)</span></li>
                 </ul>
 
                 <!-- 1. Las tres tarjetas -->
@@ -71,7 +73,7 @@
                 <div class="tend-trio">
                     <article class="indicador" aria-labelledby="tDemTitulo">
                         <h2 id="tDemTitulo">Habilidades más solicitadas por empresas</h2>
-                        <p class="indicador-nota">En las vacantes abiertas. Toca una para ver sus vacantes.</p>
+                        <p class="indicador-nota">En las vacantes abiertas. Toca una para ver sus vacantes en SkillMatch.</p>
                         <ul class="ib-lista" id="tDemandadas"></ul>
                     </article>
                     <article class="indicador" aria-labelledby="tEmpTitulo">
@@ -175,22 +177,19 @@
                         <h2 id="tMetodoTitulo">Cómo se calcula el pronóstico</h2>
                         <p>Se prueban tres modelos con semanas ya pasadas y gana el que menos se equivoca; si ninguno supera al promedio de las últimas 4 semanas, se usa ese promedio. La semana en curso no cuenta porque está incompleta.</p>
                     </div>
-                    <a class="btn btn-secondary btn-small" href="dashboard.html">Indicadores del mercado <i data-ico="arrow"></i></a>
+                    <a class="btn btn-secondary btn-small" href="https://skillmatch-yz37.onrender.com/pages/dashboard.html">Indicadores del mercado</a>
                 </aside>
             </div>
         </section>
     </main>
 
-    <!-- Pie de pagina: ui.js dibuja aqui el pie grande (este texto es el respaldo) -->
     <footer>
         <div class="container">
-            <p>&copy; 2025 SkillMatch Cartagena. Hecho para conectar a las personas y las empresas de la ciudad.</p>
+            <p>&copy; 2026 SkillMatch Cartagena. Funcionalidad de indicadores y pronóstico, calculada con los datos públicos de <a href="https://skillmatch-yz37.onrender.com/">SkillMatch</a>.</p>
         </div>
     </footer>
 
-    <script src="../assets/js/api-config.js"></script>
-    <script src="../assets/js/indicadores-config.js"></script>
-    <script src="../assets/js/tendencias.js"></script>
-    <script src="../assets/js/ui.js"></script>
+    <script src="assets/js/base.js"></script>
+    <script src="assets/js/tendencias.js"></script>
 </body>
 </html>

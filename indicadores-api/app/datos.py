@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import threading
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -53,9 +53,21 @@ class Datos:
     postulaciones: pd.DataFrame
     empresas: pd.DataFrame
     habilidades_usuarios: list[list[str]]  # una lista por persona, SIN identificadores
-    fuente: str  # "mongo" | "demo"
+    fuente: str  # "mongo" | "demo" | "api"
     cargado: datetime
     desactualizado: bool = False
+    # Totales de /api/public/stats (solo con la fuente "api"): users, companies, jobs, applications
+    totales: dict = field(default_factory=dict)
+
+    @property
+    def con_personas(self) -> bool:
+        """La API publica no entrega las habilidades de las personas; Mongo y demo si."""
+        return self.fuente != "api"
+
+    @property
+    def con_postulaciones(self) -> bool:
+        """La API publica solo da el TOTAL de postulaciones, no cada una con su estado y fecha."""
+        return self.fuente != "api"
 
     @property
     def abiertas(self) -> pd.DataFrame:
@@ -163,31 +175,79 @@ def cargar_demo(cfg: Config) -> Datos:
     return generar_demo()
 
 
-class Almacen:
-    """Guarda los datos en memoria unos minutos para no consultar Mongo en cada visita.
+def cargar_desde_api(cfg: Config) -> Datos:
+    from .fuente_api import cargar_desde_api as leer
+    return leer(cfg)
 
-    Si Mongo falla pero ya habia datos, sigue sirviendo los ultimos (marcados como
+
+CARGADORES = {"mongo": cargar_desde_mongo, "api": cargar_desde_api, "demo": cargar_demo}
+
+
+class Almacen:
+    """Guarda los datos en memoria unos minutos para no leer la fuente en cada visita.
+
+    Si la fuente falla pero ya habia datos, sigue sirviendo los ultimos (marcados como
     desactualizados) en lugar de tumbar la pagina; si nunca hubo datos, avisa con ErrorDatos.
+
+    Con la fuente "api" (unas 40 consultas al sitio en vivo) la renovacion va en segundo
+    plano: quien visita la pagina recibe al instante los datos que ya habia y, mientras
+    tanto, se traen los nuevos.
     """
 
-    def __init__(self, cfg: Config, cargador: Callable[[Config], Datos] | None = None):
+    def __init__(self, cfg: Config, cargador: Callable[[Config], Datos] | None = None,
+                 en_segundo_plano: bool | None = None):
         self.cfg = cfg
-        self._cargador = cargador or (cargar_demo if cfg.modo_demo else cargar_desde_mongo)
+        self._cargador = cargador or CARGADORES[cfg.fuente]
+        self._fondo = cfg.fuente == "api" if en_segundo_plano is None else en_segundo_plano
         self._datos: Datos | None = None
         self._lock = threading.Lock()
+        self._renovando = False
+
+    def _leer(self) -> Datos:
+        return self._cargador(self.cfg)
+
+    def _renovar_en_fondo(self):
+        try:
+            nuevos = self._leer()
+            with self._lock:
+                self._datos = nuevos
+        except Exception as e:  # noqa: BLE001
+            log.warning("La fuente %s no respondio (%s); se siguen sirviendo los ultimos datos",
+                        self.cfg.fuente, type(e).__name__)
+            with self._lock:
+                if self._datos is not None:
+                    self._datos.desactualizado = True
+        finally:
+            self._renovando = False
+
+    def precargar(self):
+        """Lee la fuente al arrancar, sin bloquear: la primera visita ya encuentra los datos."""
+        def tarea():
+            try:
+                self.obtener()
+            except ErrorDatos:
+                pass  # se reintenta en la siguiente visita
+        threading.Thread(target=tarea, name="precarga-indicadores", daemon=True).start()
 
     def obtener(self) -> Datos:
         with self._lock:
             vencido = (self._datos is None or
                        (ahora() - self._datos.cargado).total_seconds() > self.cfg.cache_segundos)
-            if vencido:
-                try:
-                    self._datos = self._cargador(self.cfg)
-                except Exception as e:  # noqa: BLE001 - cualquier fallo de red/Mongo
-                    if self._datos is None:
-                        # No se registra la URI: lleva la contrasena
-                        log.error("No se pudo leer MongoDB: %s", type(e).__name__)
-                        raise ErrorDatos("No se pudo leer la base de datos") from e
-                    log.warning("MongoDB no respondio (%s); se sirven los ultimos datos", type(e).__name__)
-                    self._datos.desactualizado = True
+            if not vencido:
+                return self._datos
+            if self._datos is not None and self._fondo:
+                if not self._renovando:
+                    self._renovando = True
+                    threading.Thread(target=self._renovar_en_fondo, daemon=True).start()
+                return self._datos
+            try:
+                self._datos = self._leer()
+            except Exception as e:  # noqa: BLE001 - cualquier fallo de red/Mongo
+                if self._datos is None:
+                    # No se registra la URI ni el detalle: puede llevar la contrasena
+                    log.error("No se pudo leer la fuente %s: %s", self.cfg.fuente, type(e).__name__)
+                    raise ErrorDatos("No se pudieron leer los datos de SkillMatch") from e
+                log.warning("La fuente %s no respondio (%s); se sirven los ultimos datos",
+                            self.cfg.fuente, type(e).__name__)
+                self._datos.desactualizado = True
             return self._datos

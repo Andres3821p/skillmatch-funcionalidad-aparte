@@ -7,16 +7,20 @@
 //
 // Sin librerías: las barras reutilizan las clases .ib-* de app.css y las gráficas son SVG
 // dibujados aquí (la política CSP del sitio bloquea scripts externos).
-// Requiere api-config.js (escaparHtml) e indicadores-config.js (direccion del servicio).
+// Requiere escaparHtml (base.js o api-config.js) y window.SKILLMATCH_INDICADORES_API
+// (base.js cuando la pagina la sirve el propio servicio; indicadores-config.js si va dentro
+// del sitio principal).
 
 (function () {
     'use strict';
 
     // La direccion del servicio se configura en indicadores-config.js
     const BASE = window.SKILLMATCH_INDICADORES_API || '/api/indicadores';
-    if (!window.SKILLMATCH_INDICADORES_API) console.warn('tendencias.js: define API_INDICADORES en indicadores-config.js.');
+    if (!window.SKILLMATCH_INDICADORES_API) console.warn('tendencias.js: falta window.SKILLMATCH_INDICADORES_API.');
 
-    const ESPERA_MAXIMA_MS = 60000;   // un servicio gratuito dormido tarda hasta un minuto
+    // En Render gratis pueden estar dormidos este servicio Y el sitio de SkillMatch del que
+    // lee los datos: la primera visita puede tardar un par de minutos
+    const ESPERA_MAXIMA_MS = 150000;
     const AVISO_LENTO_MS = 4000;
 
     // ---- Consultas ----
@@ -129,25 +133,36 @@
         aparecer(lista);
     }
 
-    const enlaceHabilidad = nombre => 'oportunidades.html?q=' + encodeURIComponent(nombre);
+    // Fuera del sitio principal, los enlaces llevan a las vacantes de SkillMatch
+    const SITIO = window.SKILLMATCH_SITIO || '';
+    const enlaceHabilidad = nombre =>
+        (SITIO ? SITIO + '/pages/' : '') + 'oportunidades.html?q=' + encodeURIComponent(nombre);
+
+    // Un indicador que la fuente de datos no permite calcular trae { disponible: false, motivo }
+    const noDisponible = (el, d) => {
+        if (d && d.disponible === false) { vacio(el, d.motivo || 'Este indicador no está disponible.'); return true; }
+        return false;
+    };
 
     // ---- Cada tarjeta ----
 
     const dibujarDemandadas = (el, d) =>
         barras(el, d.items.map(i => ({ ...i, enlace: enlaceHabilidad(i.nombre) })), d.base);
 
-    const dibujarUsuarios = (el, d) => barras(el, d.items, d.base);
+    const dibujarUsuarios = (el, d) => noDisponible(el, d) || barras(el, d.items, d.base);
 
     const dibujarEmpresas = (el, d) =>
         barras(el, d.items.map(i => ({
             ...i,
-            sub: `${numero(i.postulaciones)} ${i.postulaciones === 1 ? 'postulación recibida' : 'postulaciones recibidas'}`
+            // null = la fuente no sabe cuántas postulaciones recibió cada empresa
+            sub: i.postulaciones == null ? `${numero(i.abiertas)} abiertas hoy`
+                : `${numero(i.postulaciones)} ${i.postulaciones === 1 ? 'postulación recibida' : 'postulaciones recibidas'}`
         })), d.base);
 
     const dibujarSalarios = (el, d) =>
         barras(el, d.items.map(i => ({ ...i, texto: millones(i.valor), sub: `${numero(i.vacantes)} vacantes` })));
 
-    const dibujarEstados = (el, d) => barras(el, d.items, d.base);
+    const dibujarEstados = (el, d) => noDisponible(el, d) || barras(el, d.items, d.base);
 
     // Gráfico de mancuerna: sobre una misma pista hay un punto para lo que piden las vacantes
     // y otro para lo que tienen las personas; la línea que los une ES la brecha. Los dos
@@ -179,7 +194,14 @@
 
     function dibujarBrecha(_, d) {
         const faltan = document.getElementById('tFaltan'), sobran = document.getElementById('tSobran');
-        if (!d.disponible) { vacio(faltan, d.motivo); vacio(sobran, ''); return; }
+        // Sin datos de las personas: un solo mensaje, sin la leyenda ni la segunda columna vacía
+        const tarjeta = faltan.closest('.indicador');
+        const leyenda = tarjeta && tarjeta.querySelector('.leyenda');
+        const columnaSobran = sobran.parentElement;
+        if (leyenda) leyenda.hidden = !d.disponible;
+        columnaSobran.hidden = !d.disponible;
+        faltan.previousElementSibling.hidden = !d.disponible;
+        if (!d.disponible) { vacio(faltan, d.motivo); return; }
         const todos = [...d.faltan, ...d.sobran];
         const maxComun = Math.max(1, ...todos.flatMap(f => [f.demanda, f.oferta]));
         filasBrecha(faltan, d.faltan, maxComun);
@@ -321,6 +343,7 @@
                 <li><span class="leyenda-banda"></span>Rango probable (80 %)</li>
             </ul>
             <p class="grafica-lectura">${escaparHtml(datos.lectura)}</p>
+            ${datos.nota ? `<p class="grafica-nota">${escaparHtml(datos.nota)}</p>` : ''}
             <details class="tend-detalle">
                 <summary>Cómo le fue al modelo</summary>
                 <p>Se probó cada modelo «adivinando» semanas ya conocidas. El error medio es cuántas ${escaparHtml(datos.unidad)} se equivocó por semana (menos es mejor), con ${ev.semanas_usadas} semanas de historia.</p>
@@ -342,13 +365,27 @@
     // ---- Cifras, avisos y hora ----
 
     function cifras(r) {
+        // Sin tiempo de respuesta (fuente "api"), la cuarta cifra muestra las personas registradas
+        if (r.dias_mediana_respuesta == null && typeof r.personas === 'number') {
+            const cuarta = document.getElementById('cifraCuarta');
+            const nombre = document.getElementById('cifraCuartaNombre');
+            if (cuarta && nombre) { cuarta.dataset.cifra = 'personas'; nombre.textContent = 'Personas registradas'; }
+        }
         document.querySelectorAll('[data-cifra]').forEach(el => {
             const v = r[el.dataset.cifra];
             el.textContent = typeof v === 'number' ? numero(v) : '–';
         });
+        const fuente = document.getElementById('tendFuente');
+        if (fuente) {
+            fuente.textContent = r.fuente === 'api'
+                ? 'Datos en vivo de SkillMatch: vacantes abiertas, empresas y totales que publica el sitio. ' +
+                  'Los indicadores que necesitan información privada de las personas o de las postulaciones aparecen como no disponibles.'
+                : '';
+            fuente.hidden = r.fuente !== 'api';
+        }
         const avisos = [];
         if (r.fuente === 'demo') avisos.push('Estás viendo datos de demostración, inventados para probar la página. No son las cifras reales de SkillMatch.');
-        if (r.desactualizado) avisos.push('La base de datos no respondió: se muestran los últimos datos guardados.');
+        if (r.desactualizado) avisos.push('La fuente de datos no respondió: se muestran los últimos datos guardados.');
         const aviso = document.getElementById('tendAviso');
         aviso.textContent = avisos.join(' ');
         aviso.hidden = !avisos.length;
