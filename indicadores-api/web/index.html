@@ -59,10 +59,10 @@
             <div class="container">
 
                 <ul class="indicadores-cifras" aria-label="Cifras generales">
-                    <li><span class="ic-valor" data-cifra="vacantes_abiertas">–</span><span class="ic-nombre">Vacantes abiertas</span></li>
-                    <li><span class="ic-valor" data-cifra="empresas_activas">–</span><span class="ic-nombre">Empresas activas</span></li>
-                    <li><span class="ic-valor" data-cifra="postulaciones_por_vacante">–</span><span class="ic-nombre">Postulaciones por vacante</span></li>
-                    <li><span class="ic-valor" data-cifra="dias_mediana_respuesta" id="cifraCuarta">–</span><span class="ic-nombre" id="cifraCuartaNombre">Días en responder (mediana)</span></li>
+                    <li><span class="cifra-icono es-mar" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><span class="ic-valor" data-cifra="vacantes_abiertas">–</span><span class="ic-nombre">Vacantes abiertas</span></li>
+                    <li><span class="cifra-icono es-mar" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></svg></span><span class="ic-valor" data-cifra="empresas_activas">–</span><span class="ic-nombre">Empresas activas</span></li>
+                    <li><span class="cifra-icono es-chispa" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></span><span class="ic-valor" data-cifra="postulaciones_por_vacante">–</span><span class="ic-nombre">Postulaciones por vacante</span></li>
+                    <li><span class="cifra-icono es-verde" id="cifraCuartaIcono" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="ic-valor" data-cifra="dias_mediana_respuesta" id="cifraCuarta">–</span><span class="ic-nombre" id="cifraCuartaNombre">Días en responder (mediana)</span></li>
                 </ul>
 
                 <!-- 1. Las tres tarjetas -->
@@ -91,26 +91,13 @@
                 <!-- 2. Brecha -->
                 <div class="tend-seccion">
                     <h2>¿Falta o sobra talento?</h2>
-                    <p>Compara el porcentaje de vacantes que piden cada habilidad con el de personas que la tienen.</p>
+                    <p>Compara el porcentaje de vacantes que piden cada habilidad con el de personas que la tienen: a la derecha lo que hace falta, a la izquierda lo que sobra.</p>
                 </div>
                 <article class="indicador indicador-ancho" aria-labelledby="tBrechaTitulo">
                     <h2 id="tBrechaTitulo" class="sr-only">Brecha entre lo que piden las empresas y lo que tienen las personas</h2>
-                    <ul class="leyenda" aria-hidden="true">
-                        <li><span class="leyenda-dot demanda"></span>Vacantes que la piden</li>
-                        <li><span class="leyenda-dot oferta"></span>Personas que la tienen</li>
-                        <li><span class="leyenda-union"></span>La distancia es la brecha</li>
-                    </ul>
                     <div class="tend-estado" id="tBrechaEstado"></div>
-                    <div class="brecha-columnas" id="tBrecha">
-                        <div>
-                            <h3>Se piden más de lo que se tiene</h3>
-                            <ul class="ib-lista" id="tFaltan"></ul>
-                        </div>
-                        <div>
-                            <h3>Las hay más de lo que se piden</h3>
-                            <ul class="ib-lista" id="tSobran"></ul>
-                        </div>
-                    </div>
+                    <!-- tendencias.js dibuja aquí el resumen y la tabla con barras desde el centro -->
+                    <div class="brecha" id="tBrecha"></div>
                 </article>
 
                 <!-- 3. Pronostico -->

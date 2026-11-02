@@ -59,14 +59,89 @@
 
     // ---- Estados de una tarjeta ----
 
+    // ---- Movimiento (las mismas reglas del sitio principal) ----
+    // Solo transform y opacity; nada sigue al mouse en pantallas táctiles, y con
+    // "reducir movimiento" todo queda quieto y en su lugar desde el principio.
+    const QUIETO = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    const FORMATOS = {
+        numero: v => numero(v),
+        pct: v => pct(v),
+        millones: v => millones(v),
+        pts: v => (v > 0 ? '+' : v < 0 ? '−' : '') + numero(Math.abs(v)) + ' pts'
+    };
+
+    /** El número sube desde 0 hasta su valor, como el porcentaje del anillo de match.
+     *  El texto final ya está escrito: si algo falla, se ve el valor correcto. */
+    function contar(el) {
+        const final = Number(el.dataset.contar);
+        const formato = FORMATOS[el.dataset.formato] || FORMATOS.numero;
+        if (QUIETO || !Number.isFinite(final) || final === 0) return;
+        const duracion = 900, inicio = performance.now();
+        const paso = ahora => {
+            const t = Math.min(1, (ahora - inicio) / duracion);
+            const v = final * (1 - Math.pow(1 - t, 3));   // arranca rápido y frena suave
+            el.textContent = formato(t < 1 ? (Math.abs(final) >= 10 ? Math.round(v) : Math.round(v * 10) / 10) : final);
+            if (t < 1) requestAnimationFrame(paso);
+        };
+        requestAnimationFrame(paso);
+    }
+
     const observador = 'IntersectionObserver' in window
         ? new IntersectionObserver(entradas => entradas.forEach(e => {
             if (!e.isIntersecting) return;
             e.target.classList.add('visible');
+            e.target.querySelectorAll('[data-contar]').forEach(contar);
             observador.unobserve(e.target);
         }), { threshold: 0.15 })
         : null;
     const aparecer = el => { if (observador) observador.observe(el); else el.classList.add('visible'); };
+
+    // Los bloques (títulos de sección, cifras y tarjetas) suben y aparecen al llegar a ellos,
+    // uno tras otro, como .reveal en el sitio principal. Sin JavaScript o con movimiento
+    // reducido nunca se esconden.
+    function revelarBloques() {
+        if (QUIETO || !('IntersectionObserver' in window)) return;
+        const bloques = document.querySelectorAll('.tend-seccion, .indicadores-cifras > li, .tend-trio > .indicador, ' +
+            '.indicadores-grid > .indicador, .indicador-ancho, .indicadores-powerbi');
+        document.documentElement.classList.add('con-movimiento');
+        const io = new IntersectionObserver(entradas => {
+            let orden = 0;
+            entradas.forEach(e => {
+                if (!e.isIntersecting) return;
+                const el = e.target;
+                io.unobserve(el);
+                el.style.setProperty('--retraso', (orden++ * 70) + 'ms');
+                el.classList.add('revelado');
+                // Al terminar se quitan las clases: así "subir un poco con el mouse" no hereda el retraso
+                el.addEventListener('transitionend', function fin(ev) {
+                    if (ev.target !== el || ev.propertyName !== 'transform') return;
+                    el.removeEventListener('transitionend', fin);
+                    el.classList.remove('revelar', 'revelado');
+                    el.style.removeProperty('--retraso');
+                });
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+        bloques.forEach(el => { el.classList.add('revelar'); io.observe(el); });
+    }
+
+    // Onda desde el punto exacto del clic (la misma .ripple de app.css del sitio principal)
+    const CON_ONDA = '.btn, .btn-login, .btn-register, .ib-reintentar';
+    function ondas() {
+        if (QUIETO) return;
+        document.addEventListener('pointerdown', e => {
+            const boton = e.target.closest(CON_ONDA);
+            if (!boton) return;
+            boton.classList.add('has-ripple');
+            const r = boton.getBoundingClientRect();
+            const lado = Math.max(r.width, r.height) * 2;
+            const onda = document.createElement('span');
+            onda.className = 'ripple';
+            onda.style.cssText = `width:${lado}px;height:${lado}px;left:${e.clientX - r.left - lado / 2}px;top:${e.clientY - r.top - lado / 2}px`;
+            boton.appendChild(onda);
+            onda.addEventListener('animationend', () => onda.remove());
+        });
+    }
 
     function esqueleto(el, filas = 4) {
         const item = el.tagName === 'UL' ? 'li' : 'div';
@@ -113,16 +188,22 @@
 
     // ---- Barras (mismo marcado que indicadores.js) ----
 
-    function barras(lista, filas, total) {
+    /** Barras horizontales. Con { rango: true } (rankings) cada fila lleva su puesto y la
+     *  primera va en naranja, el acento de la marca para lo que más destaca. */
+    function barras(lista, filas, total, opciones = {}) {
         if (!filas.length) return vacio(lista, 'Todavía no hay datos para este indicador.');
         const maximo = Math.max(1, ...filas.map(f => f.valor));
-        lista.innerHTML = filas.map(f => {
+        lista.classList.toggle('con-rango', !!opciones.rango);
+        lista.innerHTML = filas.map((f, i) => {
             const nombre = f.enlace ? `<a href="${f.enlace}">${escaparHtml(f.nombre)}</a>` : escaparHtml(f.nombre);
             const sub = f.sub ? `<small>${escaparHtml(f.sub)}</small>` : '';
-            const valor = f.texto ? escaparHtml(f.texto)
-                : `${numero(f.valor)}<small>${total ? pct(f.porcentaje ?? f.valor / total * 100) : ''}</small>`;
-            return `<li class="ib-fila${f.destacada ? ' destacada' : ''}">
-                <span class="ib-nombre">${nombre}${sub}</span>
+            const puesto = opciones.rango ? `<span class="ib-rango" aria-hidden="true">${i + 1}</span>` : '';
+            const valor = f.texto
+                ? `<span data-contar="${f.valor}" data-formato="${f.formato || 'numero'}">${escaparHtml(f.texto)}</span>`
+                : `<span data-contar="${f.valor}">${numero(f.valor)}</span><small>${total ? pct(f.porcentaje ?? f.valor / total * 100) : ''}</small>`;
+            const destacada = f.destacada || (opciones.rango && i === 0);
+            return `<li class="ib-fila${destacada ? ' destacada' : ''}">
+                ${puesto}<span class="ib-nombre">${nombre}${sub}</span>
                 <span class="ib-valor">${valor}</span>
                 <span class="ib-barra" aria-hidden="true"><span></span></span></li>`;
         }).join('');
@@ -147,9 +228,9 @@
     // ---- Cada tarjeta ----
 
     const dibujarDemandadas = (el, d) =>
-        barras(el, d.items.map(i => ({ ...i, enlace: enlaceHabilidad(i.nombre) })), d.base);
+        barras(el, d.items.map(i => ({ ...i, enlace: enlaceHabilidad(i.nombre) })), d.base, { rango: true });
 
-    const dibujarUsuarios = (el, d) => noDisponible(el, d) || barras(el, d.items, d.base);
+    const dibujarUsuarios = (el, d) => noDisponible(el, d) || barras(el, d.items, d.base, { rango: true });
 
     const dibujarEmpresas = (el, d) =>
         barras(el, d.items.map(i => ({
@@ -157,55 +238,101 @@
             // null = la fuente no sabe cuántas postulaciones recibió cada empresa
             sub: i.postulaciones == null ? `${numero(i.abiertas)} abiertas hoy`
                 : `${numero(i.postulaciones)} ${i.postulaciones === 1 ? 'postulación recibida' : 'postulaciones recibidas'}`
-        })), d.base);
+        })), d.base, { rango: true });
 
     const dibujarSalarios = (el, d) =>
-        barras(el, d.items.map(i => ({ ...i, texto: millones(i.valor), sub: `${numero(i.vacantes)} vacantes` })));
+        barras(el, d.items.map(i => ({ ...i, texto: millones(i.valor), formato: 'millones', sub: `${numero(i.vacantes)} vacantes` })));
 
-    const dibujarEstados = (el, d) => noDisponible(el, d) || barras(el, d.items, d.base);
-
-    // Gráfico de mancuerna: sobre una misma pista hay un punto para lo que piden las vacantes
-    // y otro para lo que tienen las personas; la línea que los une ES la brecha. Los dos
-    // lados de la tarjeta usan la misma escala (maxComun), así que se pueden comparar.
-    // Solo se animan opacity y transform: la posición de los puntos es fija.
-    function filasBrecha(lista, items, maxComun) {
-        if (!items.length) return vacio(lista, 'Ninguna por ahora.');
-        lista.innerHTML = items.map(f => {
-            const d = f.demanda / maxComun, o = f.oferta / maxComun;
-            const desde = Math.min(d, o), ancho = Math.abs(d - o);
-            // La línea crece desde el punto de las personas hacia el de las vacantes
-            const origen = o <= d ? 'left' : 'right';
-            return `
-            <li class="br-fila">
-                <span class="ib-nombre"><a href="${enlaceHabilidad(f.nombre)}">${escaparHtml(f.nombre)}</a></span>
-                <span class="br-datos">Piden ${pct(f.demanda)} · Tienen ${pct(f.oferta)}</span>
-                <span class="mz-pista" aria-hidden="true">
-                    <span class="mz-interior">
-                        <span class="mz-union" style="left:${(desde * 100).toFixed(2)}%;width:${(ancho * 100).toFixed(2)}%;transform-origin:${origen} center"></span>
-                        <span class="mz-punto oferta" style="left:${(o * 100).toFixed(2)}%" title="Personas que la tienen: ${pct(f.oferta)}"></span>
-                        <span class="mz-punto demanda" style="left:${(d * 100).toFixed(2)}%" title="Vacantes que la piden: ${pct(f.demanda)}"></span>
-                    </span>
-                </span>
-            </li>`;
+    // Estado de las postulaciones: un anillo, porque las partes juntas son "el todo". Cada tramo
+    // mide su porcentaje (pathLength="100"); el anillo gira al dibujarse (solo transform) y la
+    // leyenda trae las cifras exactas, que es lo que leen los lectores de pantalla.
+    const CLASE_ESTADO = { Pendientes: 'pendiente', Revisadas: 'revisada', Aceptadas: 'aceptada', Rechazadas: 'rechazada' };
+    function dibujarEstados(el, d) {
+        if (noDisponible(el, d)) return;
+        const total = d.base;
+        const conValor = d.items.filter(f => f.valor > 0);
+        if (!total || !conValor.length) return vacio(el, 'Todavía no hay postulaciones.');
+        const R = 46, ANCHO = 15;
+        let acumulado = 0;
+        const tramos = conValor.map((f, i) => {
+            const largo = f.valor / total * 100;
+            const dibujado = conValor.length > 1 ? Math.max(largo - 1.6, 0.6) : largo;   // separación entre tramos
+            const tramo = `<circle class="dona-tramo ${CLASE_ESTADO[f.nombre] || ''}" style="--i:${i}" cx="60" cy="60" r="${R}"
+                pathLength="100" stroke-width="${ANCHO}" stroke-dasharray="${dibujado.toFixed(2)} ${(100 - dibujado).toFixed(2)}"
+                stroke-dashoffset="${(-acumulado).toFixed(2)}"><title>${escaparHtml(f.nombre)}: ${numero(f.valor)} (${pct(f.porcentaje)})</title></circle>`;
+            acumulado += largo;
+            return tramo;
         }).join('');
-        lista.querySelectorAll('.br-fila').forEach((f, i) => f.style.setProperty('--i', i));
-        aparecer(lista);
+        el.innerHTML = `<li class="dona-caja">
+            <div class="dona" aria-hidden="true">
+                <svg viewBox="0 0 120 120"><circle class="dona-pista" cx="60" cy="60" r="${R}" stroke-width="${ANCHO}"/><g class="dona-giro">${tramos}</g></svg>
+                <span class="dona-centro"><strong data-contar="${total}">${numero(total)}</strong><small>postulaciones</small></span>
+            </div>
+            <ul class="dona-leyenda">${d.items.map((f, i) => `
+                <li class="${CLASE_ESTADO[f.nombre] || ''}" style="--i:${i}">
+                    <span class="dona-punto" aria-hidden="true"></span>
+                    <span class="dona-nombre">${escaparHtml(f.nombre)}</span>
+                    <span class="dona-valor"><span data-contar="${f.valor}">${numero(f.valor)}</span><small>${pct(f.porcentaje)}</small></span>
+                </li>`).join('')}
+            </ul>
+        </li>`;
+        el.removeAttribute('aria-busy');
+        aparecer(el);
     }
 
-    function dibujarBrecha(_, d) {
-        const faltan = document.getElementById('tFaltan'), sobran = document.getElementById('tSobran');
-        // Sin datos de las personas: un solo mensaje, sin la leyenda ni la segunda columna vacía
-        const tarjeta = faltan.closest('.indicador');
-        const leyenda = tarjeta && tarjeta.querySelector('.leyenda');
-        const columnaSobran = sobran.parentElement;
-        if (leyenda) leyenda.hidden = !d.disponible;
-        columnaSobran.hidden = !d.disponible;
-        faltan.previousElementSibling.hidden = !d.disponible;
-        if (!d.disponible) { vacio(faltan, d.motivo); return; }
-        const todos = [...d.faltan, ...d.sobran];
-        const maxComun = Math.max(1, ...todos.flatMap(f => [f.demanda, f.oferta]));
-        filasBrecha(faltan, d.faltan, maxComun);
-        filasBrecha(sobran, d.sobran, maxComun);
+    // ¿Falta o sobra talento? Una tabla con barras que salen de una línea central: hacia la
+    // derecha (naranja) lo que hace falta, hacia la izquierda (turquesa) lo que sobra. El largo
+    // es la brecha en puntos, con la misma escala para todas las filas. Arriba, un resumen.
+    function dibujarBrecha(el, d) {
+        if (!d.disponible) { el.innerHTML = `<p class="ib-vacio">${escaparHtml(d.motivo)}</p>`; return; }
+        const faltan = d.faltan.map(f => ({ ...f, lado: 'falta' }));
+        const sobran = d.sobran.map(f => ({ ...f, lado: 'sobra' }));
+        if (!faltan.length && !sobran.length) {
+            el.innerHTML = '<p class="ib-vacio">Lo que piden las empresas y lo que tienen las personas está en equilibrio.</p>';
+            return;
+        }
+        const maxAbs = Math.max(1, ...[...faltan, ...sobran].map(f => Math.abs(f.brecha)));
+        let i = 0;
+        const fila = f => `
+            <tr class="br-fila ${f.lado}" style="--i:${i++}">
+                <th scope="row"><a href="${enlaceHabilidad(f.nombre)}">${escaparHtml(f.nombre)}</a>
+                    <span class="br-movil"><span>Piden ${pct(f.demanda)}</span><span>Tienen ${pct(f.oferta)}</span></span></th>
+                <td class="num br-col"><span data-contar="${f.demanda}" data-formato="pct">${pct(f.demanda)}</span></td>
+                <td class="num br-col"><span data-contar="${f.oferta}" data-formato="pct">${pct(f.oferta)}</span></td>
+                <td class="br-celda">
+                    <span class="br-diverge" aria-hidden="true"><span class="br-barra" style="--w:${(Math.abs(f.brecha) / maxAbs).toFixed(3)}"></span></span>
+                    <span class="br-valor" data-contar="${f.brecha}" data-formato="pts">${FORMATOS.pts(f.brecha)}</span>
+                </td>
+            </tr>`;
+        const grupo = (titulo, clase, lista) => lista.length
+            ? `<tr class="br-grupo ${clase}"><th colspan="4" scope="colgroup"><span class="br-grupo-punto" aria-hidden="true"></span>${titulo}</th></tr>` + lista.map(fila).join('')
+            : '';
+        const resumen = [];
+        if (faltan[0]) resumen.push(`<li class="falta"><span class="br-r-titulo">Lo que más hace falta</span>
+            <strong>${escaparHtml(faltan[0].nombre)}</strong><span class="br-r-valor" data-contar="${faltan[0].brecha}" data-formato="pts">${FORMATOS.pts(faltan[0].brecha)}</span></li>`);
+        if (sobran[0]) resumen.push(`<li class="sobra"><span class="br-r-titulo">Lo que más sobra</span>
+            <strong>${escaparHtml(sobran[0].nombre)}</strong><span class="br-r-valor" data-contar="${sobran[0].brecha}" data-formato="pts">${FORMATOS.pts(sobran[0].brecha)}</span></li>`);
+        resumen.push(`<li class="base"><span class="br-r-titulo">Comparación hecha con</span>
+            <strong><span data-contar="${d.base_vacantes}">${numero(d.base_vacantes)}</span> vacantes</strong>
+            <span class="br-r-valor">y <span data-contar="${d.base_personas}">${numero(d.base_personas)}</span> personas</span></li>`);
+
+        el.innerHTML = `
+            <ul class="br-resumen">${resumen.join('')}</ul>
+            <div class="br-marco">
+                <table class="br-tabla">
+                    <caption class="sr-only">Habilidades con más diferencia entre el porcentaje de vacantes que las piden y el de personas que las tienen, en puntos</caption>
+                    <thead><tr>
+                        <th scope="col">Habilidad</th>
+                        <th scope="col" class="num br-col">Vacantes que la piden</th>
+                        <th scope="col" class="num br-col">Personas que la tienen</th>
+                        <th scope="col" class="br-cab"><span class="sr-only">Brecha en puntos</span>
+                            <span class="br-eje" aria-hidden="true"><span>Sobra</span><span>Falta</span></span></th>
+                    </tr></thead>
+                    <tbody>${grupo('Se piden más de lo que se tiene', 'falta', faltan)}${grupo('Las hay más de lo que se piden', 'sobra', sobran)}</tbody>
+                </table>
+            </div>
+            <p class="br-nota">La brecha son los puntos de diferencia entre el porcentaje de vacantes que piden una habilidad y el de personas que la tienen. Toca una habilidad para ver sus vacantes en SkillMatch.</p>`;
+        aparecer(el);
     }
 
     // Mini-línea (sparkline): el % de vacantes que piden la habilidad, semana a semana.
@@ -238,11 +365,11 @@
 
     function filasTendencia(lista, items, vacioTexto) {
         if (!items.length) return vacio(lista, vacioTexto);
-        lista.innerHTML = items.map(f => {
+        lista.innerHTML = items.map((f, i) => {
             const firme = f.evidencia === 'firme';
             const proyeccion = firme ? ` · En 4 semanas: ${pct(f.proyeccion_4_semanas)}` : '';
             const spark = miniLinea(f.serie, f.nombre);
-            return `<li class="tn-fila ${f.tendencia}${spark ? ' con-spark' : ''}">
+            return `<li class="tn-fila ${f.tendencia}${spark ? ' con-spark' : ''}" style="--i:${i}">
                 <span class="tn-nombre"><a href="${enlaceHabilidad(f.nombre)}">${escaparHtml(f.nombre)}</a></span>
                 <span class="tn-cambio">${FLECHAS[f.tendencia] || ''}${suma(f.cambio_pp_semana)} puntos por semana</span>
                 ${spark}
@@ -315,17 +442,23 @@
         }).join('');
 
         const nombre = datos.unidad === 'postulaciones' ? 'postulaciones' : 'vacantes';
-        const puntosPron = pron.map(p =>
-            `<circle class="g-punto pron" cx="${x(p.semana).toFixed(1)}" cy="${y(p.valor).toFixed(1)}" r="4">` +
+        const puntosPron = pron.map((p, i) =>
+            `<circle class="g-punto pron" style="--i:${i}" cx="${x(p.semana).toFixed(1)}" cy="${y(p.valor).toFixed(1)}" r="4">` +
             `<title>Semana del ${fechaCorta(p.semana)}: se esperan ${numero(p.valor)} ${nombre} (entre ${numero(p.minimo)} y ${numero(p.maximo)})</title></circle>`).join('');
         const puntoParcial = parcial
             ? `<circle class="g-punto parcial" cx="${x(parcial.semana).toFixed(1)}" cy="${y(parcial.valor).toFixed(1)}" r="4.5"><title>Semana en curso, incompleta: ${numero(parcial.valor)} hasta ahora</title></circle>` : '';
 
+        // Las líneas y la banda se descubren de izquierda a derecha: un rectángulo de recorte que
+        // crece con transform (scaleX). El id no se repite porque cada gráfica es de una serie.
+        const corte = 'corte-' + nombre;
         return `<svg viewBox="0 0 ${ancho} ${alto}" role="img" aria-label="${escaparHtml(datos.lectura)}">
+            <defs><clipPath id="${corte}"><rect class="g-corte" x="0" y="0" width="${ancho}" height="${alto}"/></clipPath></defs>
             ${rejilla}${etiquetas}
-            <path class="g-banda" d="${banda}"/>
-            <path class="g-hist" d="${trazoHist}"/>
-            <path class="g-pron" d="${trazoPron}"/>
+            <g clip-path="url(#${corte})">
+                <path class="g-banda" d="${banda}"/>
+                <path class="g-hist" d="${trazoHist}"/>
+                <path class="g-pron" d="${trazoPron}"/>
+            </g>
             ${puntosPron}${puntoParcial}
             <circle class="g-punto" cx="${x(ultima.semana).toFixed(1)}" cy="${y(ultima.valor).toFixed(1)}" r="4.5"><title>Última semana completa: ${numero(ultima.valor)} ${nombre}</title></circle>
         </svg>`;
@@ -350,12 +483,14 @@
                 <ul>${ev.modelos.map(mo => `<li class="${mo.id === datos.modelo ? 'elegido' : ''}"><span>${escaparHtml(mo.nombre)}${mo.id === datos.modelo ? ' (el elegido)' : ''}</span><span>${numero(mo.mae)}</span></li>`).join('')}</ul>
             </details>`;
         const lienzo = cont.querySelector('.grafica-lienzo');
-        let anchoPrevio = 0;
+        let anchoPrevio = 0, veces = 0;
         const dibujar = () => {
             const ancho = Math.round(lienzo.clientWidth);
             if (!ancho || ancho === anchoPrevio) return;
             anchoPrevio = ancho;
             lienzo.innerHTML = svgPronostico(Math.max(ancho, 260), datos);
+            // Al cambiar el tamaño de la ventana se vuelve a dibujar, pero sin repetir la animación
+            if (veces++) lienzo.firstElementChild.classList.add('g-quieto');
         };
         dibujar();
         if ('ResizeObserver' in window) new ResizeObserver(dibujar).observe(lienzo);
@@ -364,17 +499,28 @@
 
     // ---- Cifras, avisos y hora ----
 
+    const ICONO_PERSONAS = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+
     function cifras(r) {
         // Sin tiempo de respuesta (fuente "api"), la cuarta cifra muestra las personas registradas
         if (r.dias_mediana_respuesta == null && typeof r.personas === 'number') {
             const cuarta = document.getElementById('cifraCuarta');
             const nombre = document.getElementById('cifraCuartaNombre');
-            if (cuarta && nombre) { cuarta.dataset.cifra = 'personas'; nombre.textContent = 'Personas registradas'; }
+            if (cuarta && nombre) {
+                cuarta.dataset.cifra = 'personas';
+                nombre.textContent = 'Personas registradas';
+                const icono = document.getElementById('cifraCuartaIcono');
+                if (icono) icono.innerHTML = ICONO_PERSONAS;
+            }
         }
         document.querySelectorAll('[data-cifra]').forEach(el => {
             const v = r[el.dataset.cifra];
             el.textContent = typeof v === 'number' ? numero(v) : '–';
+            if (typeof v === 'number') el.dataset.contar = v; else delete el.dataset.contar;
         });
+        // Las cifras grandes cuentan desde 0 al aparecer en pantalla
+        const lista = document.querySelector('.indicadores-cifras');
+        if (lista) aparecer(lista);
         const fuente = document.getElementById('tendFuente');
         if (fuente) {
             fuente.textContent = r.fuente === 'api'
@@ -405,6 +551,8 @@
         const espera = document.getElementById('tendEspera');
         // Un servicio gratuito dormido tarda en despertar: sin aviso la página parece rota
         const reloj = setTimeout(() => { espera.hidden = false; }, AVISO_LENTO_MS);
+        revelarBloques();
+        ondas();
 
         await Promise.allSettled([
             cargarCifras(),

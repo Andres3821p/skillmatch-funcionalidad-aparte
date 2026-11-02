@@ -50,7 +50,7 @@
 .ib-reintentar:hover { color: var(--sea); }
 .ib-nombre small { display: block; margin-top: 1px; font-size: var(--t-xs); font-weight: 400; color: var(--ink-muted); }
 
-/* ---------- Brecha y tendencias: dos columnas dentro de una tarjeta ---------- */
+/* ---------- Tendencias: dos columnas dentro de una tarjeta ---------- */
 .brecha-columnas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s7); }
 .brecha-columnas h3 { font-size: var(--t-md); font-family: var(--font-display); color: var(--ink); }
 .brecha-columnas .ib-lista,
@@ -61,42 +61,10 @@
 
 .leyenda { list-style: none; margin: 0 0 var(--s5); padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); font-size: var(--t-xs); color: var(--ink-3); }
 .leyenda li { display: inline-flex; align-items: center; gap: 8px; }
-.leyenda-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--sea); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--hairline); }
-.leyenda-dot.oferta { background: var(--naranja); }
-.leyenda-union { width: 22px; height: 4px; border-radius: var(--r-pill); background: var(--ink-3); opacity: .35; }
 .leyenda-linea { width: 22px; height: 0; border-top: 3px solid var(--sea); border-radius: 2px; }
 .leyenda-linea.pron { border-top: 3px dashed var(--naranja); }
 .leyenda-banda { width: 22px; height: 12px; border-radius: 3px; background: var(--naranja-soft); border: 1px solid var(--naranja); }
 .leyenda-punto { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--sea); background: var(--surface); }
-
-.br-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px var(--s3); }
-.br-datos { font-size: var(--t-xs); color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* Mancuerna: dos puntos sobre la misma pista y una línea entre ellos (la brecha) */
-.mz-pista { grid-column: 1 / -1; display: block; height: 22px; }
-.mz-interior { position: relative; display: block; height: 100%; margin: 0 7px; }   /* 7px = radio del punto: no se corta en los bordes */
-.mz-interior::before {
-    content: ""; position: absolute; left: -7px; right: -7px; top: 50%; height: 1px;
-    background: var(--hairline);
-}
-.mz-union {
-    position: absolute; top: 50%; height: 4px; margin-top: -2px; border-radius: var(--r-pill);
-    background: var(--ink-3); opacity: .35; transform: scaleX(0);
-}
-.mz-punto {
-    position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
-    background: var(--sea); box-shadow: 0 0 0 2px var(--surface);
-    opacity: 0; transform: scale(.4);
-}
-.mz-punto.oferta { background: var(--naranja); }
-.ib-lista.visible .mz-union { transform: scaleX(1); }
-.ib-lista.visible .mz-punto { opacity: 1; transform: scale(1); }
-@media (prefers-reduced-motion: no-preference) {
-    .mz-union { transition: transform .8s var(--ease-out) calc(var(--i, 0) * 70ms + 120ms); }
-    .mz-punto { transition: transform .5s var(--ease-out) calc(var(--i, 0) * 70ms), opacity .4s var(--ease-out) calc(var(--i, 0) * 70ms); }
-}
-@media (prefers-reduced-motion: reduce) {
-    .mz-union, .mz-punto { transition: none; }
-}
 
 /* ---------- Habilidades que suben o bajan ---------- */
 .tn-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s4); }
@@ -184,3 +152,197 @@
 #cambiarTema { cursor: pointer; }
 footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .brecha-columnas:has(> [hidden]) { grid-template-columns: minmax(0, 1fr); }
+
+/* =====================================================================
+   Rediseño de las tarjetas y animaciones (las del sitio principal)
+   Reglas de app.css: solo se animan transform y opacity; lo que depende
+   del mouse solo con mouse fino; con "reducir movimiento" nada se mueve.
+   ===================================================================== */
+
+/* ---------- Entrada de los bloques al hacer scroll (como .reveal) ----------
+   tendencias.js pone .con-movimiento en <html>: sin JavaScript no se esconde nada */
+.con-movimiento .revelar { opacity: 0; transform: translateY(18px); }
+.con-movimiento .revelar.revelado {
+    opacity: 1; transform: none;
+    transition: opacity var(--dur-3, 480ms) var(--ease-out), transform var(--dur-3, 480ms) var(--ease-out);
+    transition-delay: var(--retraso, 0ms);
+}
+
+/* ---------- Las tarjetas suben un poco con el mouse (como en Mi perfil) ---------- */
+.indicador, .indicadores-cifras > li { transition: transform .24s var(--ease-out); }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .indicador:not(.revelar):hover, .indicadores-cifras > li:not(.revelar):hover { transform: translateY(-3px); }
+}
+
+/* ---------- Cifras grandes: icono en su círculo ---------- */
+.indicadores-cifras > li { position: relative; padding-right: calc(var(--s5) + 44px); }
+.indicadores-cifras .cifra-icono { top: 50%; right: var(--s4); margin-top: -20px; }
+@media (max-width: 700px) {
+    .indicadores-cifras > li { padding-right: var(--s4); padding-top: calc(var(--s4) + 40px); }
+    .indicadores-cifras .cifra-icono { top: var(--s3); right: auto; left: var(--s4); margin-top: 0; width: 34px; height: 34px; }
+    .indicadores-cifras .cifra-icono .ico { width: 17px; height: 17px; }
+}
+
+/* ---------- Rankings: puesto, barra con degradado y un destello que la cruza ---------- */
+.ib-lista.con-rango .ib-fila { grid-template-columns: 26px minmax(0, 1fr) auto; }
+.ib-lista.con-rango .ib-barra { grid-column: 2 / -1; }
+.ib-rango {
+    display: grid; place-items: center; align-self: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--hairline-soft); color: var(--ink-3);
+    font-family: var(--font-display); font-size: var(--t-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.ib-fila.destacada .ib-rango { background: var(--naranja-soft); color: var(--naranja-texto); }
+.ib-fila { position: relative; }
+.ib-fila::before {
+    content: ""; position: absolute; inset: -6px -10px; z-index: -1; border-radius: var(--r-md);
+    background: var(--hairline-soft); opacity: 0; transition: opacity .2s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) { .ib-fila:hover::before { opacity: 1; } }
+.ib-lista { isolation: isolate; }
+.ib-barra > span { position: relative; overflow: hidden; background: linear-gradient(90deg, var(--sea-deep), var(--sea)); }
+.ib-fila.destacada .ib-barra > span { background: linear-gradient(90deg, #E8650C, var(--naranja)); }
+.ib-barra > span::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%);
+    transform: translateX(-110%);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .ib-lista.visible .ib-barra > span::after { animation: barra-destello 1.1s var(--ease-out) calc(var(--i, 0) * 70ms + .75s) both; }
+}
+@keyframes barra-destello { to { transform: translateX(110%); } }
+
+/* ---------- Estado de las postulaciones: anillo que gira al dibujarse ---------- */
+.dona-caja { display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: center; gap: var(--s6); }
+.dona { position: relative; width: 148px; aspect-ratio: 1; }
+.dona svg { width: 100%; height: 100%; overflow: visible; }
+.dona circle { fill: none; }
+.dona-pista { stroke: var(--hairline-soft); }
+.dona-giro { transform: rotate(-90deg); transform-origin: 60px 60px; transform-box: view-box; }
+.dona-tramo { stroke: var(--ink-muted); }
+.dona-tramo.pendiente { stroke: var(--sol); }
+.dona-tramo.revisada { stroke: var(--sea); }
+.dona-tramo.aceptada { stroke: var(--verde); }
+.dona-tramo.rechazada { stroke: var(--ink-muted); }
+.dona-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.dona-centro strong { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dona-centro small { margin-top: 4px; font-size: var(--t-xs); color: var(--ink-muted); }
+.dona-leyenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s3); }
+.dona-leyenda li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: baseline; gap: var(--s3); font-size: var(--t-sm); }
+.dona-punto { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-muted); align-self: center; }
+.pendiente .dona-punto { background: var(--sol); }
+.revisada .dona-punto { background: var(--sea); }
+.aceptada .dona-punto { background: var(--verde); }
+.dona-nombre { font-weight: 600; color: var(--ink-2); }
+.dona-valor { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dona-valor small { margin-left: 8px; font-size: var(--t-xs); font-weight: 500; color: var(--ink-muted); }
+@media (prefers-reduced-motion: no-preference) {
+    .ib-lista:not(.visible) .dona { opacity: 0; transform: scale(.88); }
+    .ib-lista:not(.visible) .dona-leyenda li { opacity: 0; transform: translateX(10px); }
+    .ib-lista.visible .dona { transition: opacity .5s var(--ease-out), transform .7s var(--ease-out); }
+    .ib-lista.visible .dona-giro { animation: dona-gira 1.1s var(--ease-out) both; }
+    .ib-lista.visible .dona-tramo { animation: aparece .45s var(--ease-out) calc(var(--i, 0) * 140ms + .15s) both; }
+    .ib-lista.visible .dona-leyenda li { transition: opacity .4s var(--ease-out), transform .5s var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms + .2s); }
+}
+@keyframes dona-gira { from { transform: rotate(-230deg); } to { transform: rotate(-90deg); } }
+@keyframes aparece { from { opacity: 0; } }
+@media (max-width: 420px) {
+    .dona-caja { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+    .dona-leyenda { width: 100%; }
+}
+
+/* ---------- ¿Falta o sobra talento? Resumen + tabla con barras desde el centro ---------- */
+.brecha { display: flex; flex-direction: column; gap: var(--s5); }
+.br-resumen { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
+.br-resumen li {
+    position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px;
+    padding: var(--s4) var(--s5); border-radius: 18px;
+    background: var(--vidrio-tinte-fino, var(--hairline-soft));
+    border: 1px solid var(--vidrio-borde-fino, var(--hairline));
+    box-shadow: var(--vidrio-brillo-fino, none);
+}
+.br-resumen li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--hairline); }
+.br-resumen li.falta::before { background: var(--naranja); }
+.br-resumen li.sobra::before { background: var(--sea); }
+.br-r-titulo { font-size: var(--t-xs); font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+.br-resumen strong { font-family: var(--font-display); font-size: var(--t-lg); color: var(--ink); overflow-wrap: anywhere; }
+.br-r-valor { font-size: var(--t-sm); font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.br-resumen .falta .br-r-valor, .br-fila.falta .br-valor { color: var(--naranja-texto); }
+.br-resumen .sobra .br-r-valor, .br-fila.sobra .br-valor { color: var(--sea-deep); }
+[data-theme="dark"] :is(.br-resumen .sobra .br-r-valor, .br-fila.sobra .br-valor) { color: var(--sea); }
+
+.br-marco { overflow-x: auto; margin: 0 calc(var(--s2) * -1); padding: 0 var(--s2); }
+.br-tabla { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.br-tabla th, .br-tabla td { padding: 11px var(--s3); text-align: left; vertical-align: middle; }
+.br-tabla thead th { padding-bottom: var(--s3); font-size: var(--t-xs); font-weight: 700; color: var(--ink-muted); border-bottom: 1px solid var(--hairline); }
+.br-tabla .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-2); }
+.br-tabla tbody th { font-weight: 600; color: var(--ink-2); }
+.br-tabla tbody th a { color: inherit; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 3px; }
+.br-tabla tbody th a:hover { color: var(--sea-deep); text-decoration-color: currentColor; }
+.br-fila td, .br-fila th { border-bottom: 1px solid var(--hairline-soft); }
+.br-fila { transition: background-color .2s var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .br-fila:hover { background: var(--hairline-soft); } }
+.br-movil { display: none; }
+
+/* Fila de grupo: "Se piden más..." / "Las hay más..." */
+.br-grupo th { padding-top: var(--s5); font-size: var(--t-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.br-grupo:first-child th { padding-top: var(--s4); }
+.br-grupo-punto { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; vertical-align: 1px; background: var(--naranja); }
+.br-grupo.sobra .br-grupo-punto { background: var(--sea); }
+
+/* La barra sale de la línea del centro: a la derecha falta, a la izquierda sobra */
+.br-cab { width: 46%; }
+.br-celda { width: 46%; }
+.br-celda { white-space: nowrap; }
+.br-diverge, .br-eje { position: relative; display: inline-block; vertical-align: middle; width: calc(100% - 5.6em); }
+.br-diverge { height: 14px; }
+.br-diverge::before { content: ""; position: absolute; left: 50%; top: -14px; bottom: -14px; width: 1px; background: var(--hairline); }
+.br-barra { position: absolute; top: 0; height: 100%; width: calc(50% * var(--w, 0)); border-radius: var(--r-pill); transform: scaleX(0); }
+.br-fila.falta .br-barra { left: 50%; transform-origin: left center; background: linear-gradient(90deg, rgba(255, 118, 24, .5), var(--naranja)); }
+.br-fila.sobra .br-barra { right: 50%; transform-origin: right center; background: linear-gradient(270deg, rgba(11, 126, 140, .45), var(--sea)); }
+.brecha.visible .br-barra { transform: scaleX(1); }
+.br-valor { display: inline-block; width: 5.2em; margin-left: .4em; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: middle; }
+.br-eje { display: inline-flex; justify-content: space-between; }
+.br-eje span { flex: 1; }
+.br-eje span:first-child { text-align: right; padding-right: 10px; color: var(--sea-deep); }
+.br-eje span:last-child { padding-left: 10px; color: var(--naranja-texto); }
+[data-theme="dark"] .br-eje span:first-child { color: var(--sea); }
+.br-nota { margin: 0; font-size: var(--t-xs); color: var(--ink-muted); max-width: 80ch; }
+@media (prefers-reduced-motion: no-preference) {
+    .brecha:not(.visible) .br-fila, .brecha:not(.visible) .br-resumen li { opacity: 0; }
+    .brecha:not(.visible) .br-resumen li { transform: translateY(10px); }
+    .brecha.visible .br-resumen li { transition: opacity .45s var(--ease-out), transform .55s var(--ease-out); }
+    .brecha.visible .br-resumen li:nth-child(2) { transition-delay: 80ms; }
+    .brecha.visible .br-resumen li:nth-child(3) { transition-delay: 160ms; }
+    .brecha.visible .br-fila { transition: opacity .4s var(--ease-out) calc(var(--i, 0) * 70ms + .2s), background-color .2s var(--ease-out); }
+    .brecha.visible .br-barra { transition: transform .9s var(--ease-out) calc(var(--i, 0) * 70ms + .3s); }
+}
+@media (max-width: 760px) {
+    .br-resumen { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+    .br-resumen li { padding: var(--s3) var(--s4); }
+    .br-col { display: none; }
+    .br-movil { display: block; margin-top: 2px; font-size: var(--t-xs); font-weight: 400; color: var(--ink-muted); }
+    .br-movil > span { display: block; white-space: nowrap; }
+    .br-tabla th, .br-tabla td { padding: 10px var(--s2); }
+    .br-cab, .br-celda { width: 55%; }
+}
+
+/* ---------- Habilidades que suben o bajan: las filas llegan una tras otra ---------- */
+@media (prefers-reduced-motion: no-preference) {
+    .tn-lista:not(.visible) .tn-fila { opacity: 0; transform: translateX(-10px); }
+    .tn-lista:not(.visible) .tn-fila.baja { transform: translateX(10px); }
+    .tn-lista.visible .tn-fila { transition: opacity .4s var(--ease-out), transform .55s var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
+}
+
+/* ---------- Pronóstico: la línea se dibuja de izquierda a derecha y los puntos saltan ---------- */
+.g-corte, .g-punto { transform-box: fill-box; }
+.g-corte { transform-origin: left center; }
+.g-punto { transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+    .grafica:not(.visible) .g-corte { transform: scaleX(0); }
+    .grafica.visible .g-corte { animation: g-corte 1.3s var(--ease-out) both; }
+    .grafica.visible .g-punto { animation: g-punto .45s var(--ease-out) calc(1.05s + var(--i, 0) * 110ms) both; }
+    .g-quieto .g-corte, .g-quieto .g-punto { animation: none !important; transform: none !important; }
+}
+@keyframes g-corte { from { transform: scaleX(0); } }
+@keyframes g-punto { from { opacity: 0; transform: scale(0); } }
