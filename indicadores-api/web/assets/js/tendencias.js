@@ -192,23 +192,24 @@
      *  primera va en naranja, el acento de la marca para lo que más destaca. */
     function barras(lista, filas, total, opciones = {}) {
         if (!filas.length) return vacio(lista, 'Todavía no hay datos para este indicador.');
-        const maximo = Math.max(1, ...filas.map(f => f.valor));
+        // La fila "Otras empresas" (otras: true) junta a todas las demás y no cuenta para la escala de las barras
+        const maximo = Math.max(1, ...filas.filter(f => !f.otras).map(f => f.valor));
         lista.classList.toggle('con-rango', !!opciones.rango);
         lista.innerHTML = filas.map((f, i) => {
             const nombre = f.enlace ? `<a href="${f.enlace}">${escaparHtml(f.nombre)}</a>` : escaparHtml(f.nombre);
             const sub = f.sub ? `<small>${escaparHtml(f.sub)}</small>` : '';
-            const puesto = opciones.rango ? `<span class="ib-rango" aria-hidden="true">${i + 1}</span>` : '';
+            const puesto = opciones.rango ? `<span class="ib-rango" aria-hidden="true">${f.otras ? '…' : i + 1}</span>` : '';
             const valor = f.texto
                 ? `<span data-contar="${f.valor}" data-formato="${f.formato || 'numero'}">${escaparHtml(f.texto)}</span>`
                 : `<span data-contar="${f.valor}">${numero(f.valor)}</span><small>${total ? pct(f.porcentaje ?? f.valor / total * 100) : ''}</small>`;
-            const destacada = f.destacada || (opciones.rango && i === 0);
+            const destacada = f.destacada || (opciones.rango && i === 0 && !f.otras);
             return `<li class="ib-fila${destacada ? ' destacada' : ''}">
                 ${puesto}<span class="ib-nombre">${nombre}${sub}</span>
                 <span class="ib-valor">${valor}</span>
                 <span class="ib-barra" aria-hidden="true"><span></span></span></li>`;
         }).join('');
         lista.querySelectorAll('.ib-barra > span').forEach((b, i) => {
-            b.style.setProperty('--p', filas[i].valor / maximo);
+            b.style.setProperty('--p', Math.min(1, filas[i].valor / maximo));
             b.style.setProperty('--i', i);
         });
         aparecer(lista);

@@ -110,3 +110,50 @@ def test_salarios_por_experiencia_usa_mediana(construir):
     jobs = [doc_job(e["_id"], [], exp="junior", salario=s) for s in (1e6, 2e6, 9e6)]
     r = ind.salarios_por_experiencia(construir(jobs=jobs, empresas=[e]))
     assert r["items"] == [{"nombre": "Hasta 1 año", "valor": 2_000_000, "vacantes": 3}]
+
+
+# ---------------------------------------------------------------- porcentajes que suman 100
+
+def test_repartir_pct_suma_exactamente_100():
+    import random
+    # Tres partes iguales: redondeando una por una daria 33,3 + 33,3 + 33,3 = 99,9
+    assert ind._repartir_pct([1, 1, 1]) == [33.4, 33.3, 33.3]
+    assert ind._repartir_pct([7] * 7) == [14.3, 14.3, 14.3, 14.3, 14.3, 14.3, 14.2]
+    assert ind._repartir_pct([5]) == [100.0]
+    assert ind._repartir_pct([0, 0, 0]) == [0.0, 0.0, 0.0]
+    assert ind._repartir_pct([]) == []
+    # Cada parte queda a menos de una decima de su valor exacto y todas juntas dan 100
+    azar = random.Random(7)
+    for _ in range(500):
+        valores = [azar.randint(0, 60) for _ in range(azar.randint(1, 9))]
+        if not sum(valores):
+            continue
+        partes = ind._repartir_pct(valores)
+        assert round(sum(partes), 6) == 100.0
+        assert all(abs(p - v / sum(valores) * 100) < 0.1 + 1e-9 for p, v in zip(partes, valores))
+
+
+def test_estado_de_las_postulaciones_suma_100(construir):
+    e = empresa("Acme")
+    j = doc_job(e["_id"], [])
+    estados = ["PENDIENTE", "REVISADA", "RECHAZADA"]          # una de cada: 33,3 % por separado suma 99,9
+    apps = [{"_id": ObjectId(), "jobId": str(j["_id"]), "status": s, "appliedDate": HOY} for s in estados]
+    r = ind.embudo_postulaciones(construir(jobs=[j], apps=apps, empresas=[e]))
+    assert r["base"] == 3
+    assert round(sum(i["porcentaje"] for i in r["items"]), 6) == 100.0
+    assert [i["valor"] for i in r["items"]] == [1, 1, 0, 1]
+
+
+def test_empresas_activas_suman_100_con_otras_empresas(construir):
+    empresas = [empresa(n) for n in ("Alfa", "Beta", "Gamma")]
+    jobs = [doc_job(e["_id"], []) for e in empresas]            # una vacante por empresa: 3 partes iguales
+    d = construir(jobs=jobs, empresas=empresas)
+    r = ind.empresas_activas(d, top=1)
+    assert [i["nombre"] for i in r["items"]] == ["Alfa", "Otras empresas"]
+    otras = r["items"][1]
+    assert otras["otras"] is True and otras["valor"] == 2
+    assert round(sum(i["porcentaje"] for i in r["items"]), 6) == 100.0
+    # Si todas caben en el top no se agrega la fila "Otras empresas"
+    todas = ind.empresas_activas(d, top=3)
+    assert len(todas["items"]) == 3 and not any(i.get("otras") for i in todas["items"])
+    assert round(sum(i["porcentaje"] for i in todas["items"]), 6) == 100.0

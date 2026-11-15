@@ -33,6 +33,27 @@ def _pct(parte: float, total: float) -> float:
     return round(parte / total * 100, 1) if total else 0.0
 
 
+def _repartir_pct(valores: list[int], decimales: int = 1) -> list[float]:
+    """Porcentajes de un TODO que suman exactamente 100.
+
+    Redondear cada parte por separado falla: tres partes iguales dan 33,3 + 33,3 + 33,3 = 99,9.
+    Aqui se usa el metodo del mayor residuo: cada parte baja al decimal que le corresponde y las
+    centesimas que sobran se reparten, una a una, entre las partes con el residuo mas grande.
+    Todo con enteros, para que no haya errores de coma flotante.
+    """
+    total = sum(valores)
+    if not total:
+        return [0.0] * len(valores)
+    escala = 10 ** decimales
+    cocientes, residuos = zip(*(divmod(int(v) * 100 * escala, total) for v in valores))
+    sobran = 100 * escala - sum(cocientes)
+    orden = sorted(range(len(valores)), key=lambda i: (-residuos[i], i))
+    partes = list(cocientes)
+    for i in orden[:sobran]:
+        partes[i] += 1
+    return [p / escala for p in partes]
+
+
 def contar_habilidades(listas) -> tuple[list[tuple[str, int]], int]:
     """Cuantas listas mencionan cada habilidad (una vez por lista). Devuelve (ranking, total_listas).
 
@@ -95,9 +116,16 @@ def empresas_activas(d: Datos, top: int = 10, hoy: datetime | None = None, dias:
                       "postulaciones": int(recibidas.get(emp_id, 0)) if con_post else None})
     filas.sort(key=lambda f: (-f["valor"], -(f["postulaciones"] or 0), f["nombre"].lower()))
     total = int(por_empresa.sum())
-    for f in filas:
-        f["porcentaje"] = _pct(f["valor"], total)
-    return {"base": total, "unidad": f"vacantes publicadas en {dias} días", "items": filas[:top]}
+    visibles, resto = filas[:top], filas[top:]
+    if resto:
+        # Las empresas que no entran en el top se juntan en una fila, para que las partes sumen el 100 %
+        suma_post = None if not con_post else sum(f["postulaciones"] for f in resto)
+        visibles.append({"nombre": "Otras empresas", "sector": "", "otras": True,
+                         "valor": sum(f["valor"] for f in resto),
+                         "abiertas": sum(f["abiertas"] for f in resto), "postulaciones": suma_post})
+    for f, p in zip(visibles, _repartir_pct([f["valor"] for f in visibles])):
+        f["porcentaje"] = p
+    return {"base": total, "unidad": f"vacantes publicadas en {dias} días", "items": visibles}
 
 
 # ---------------------------------------------------------------- brecha oferta / demanda
@@ -175,8 +203,9 @@ def embudo_postulaciones(d: Datos) -> dict:
     total = int(sum(cuenta.values()))
     orden = [("pendiente", "Pendientes"), ("revisada", "Revisadas"),
              ("aceptada", "Aceptadas"), ("rechazada", "Rechazadas")]
-    return {"disponible": True, "base": total, "items": [{"nombre": n, "valor": int(cuenta.get(k, 0)),
-                                       "porcentaje": _pct(cuenta.get(k, 0), total)} for k, n in orden]}
+    valores = [int(cuenta.get(k, 0)) for k, _ in orden]
+    return {"disponible": True, "base": total, "items": [{"nombre": n, "valor": v, "porcentaje": p}
+                                                         for (_, n), v, p in zip(orden, valores, _repartir_pct(valores))]}
 
 
 def resumen(d: Datos) -> dict:
