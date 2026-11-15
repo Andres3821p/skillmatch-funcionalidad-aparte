@@ -86,7 +86,7 @@ indicadores-api/
 │   ├── indicadores.py   cálculo de indicadores (funciones puras)
 │   ├── prediccion.py    los dos modelos predictivos
 │   └── demo.py          datos de demostración
-├── web/                 la página: index.html + assets (app.css es el del sitio principal)
+├── web/                 la página: index.html + assets (app.css y fuentes son los del sitio principal; pie.js dibuja su pie de página)
 ├── tests/               57 pruebas (API de SkillMatch y MongoDB simuladas)
 └── Dockerfile · requirements.txt · iniciar.ps1 · .env.example
 render.yaml              despliegue en Render
