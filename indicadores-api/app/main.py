@@ -64,8 +64,8 @@ app.add_middleware(
 # habla con su propio servidor y no se puede incrustar en otro sitio.
 CABECERAS = {
     "Content-Security-Policy": ("default-src 'self'; script-src 'self'; "
-                                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                                "font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; "
+                                "style-src 'self' 'unsafe-inline'; "
+                                "font-src 'self' data:; img-src 'self' data:; "
                                 "connect-src 'self'; frame-ancestors 'self'"),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
