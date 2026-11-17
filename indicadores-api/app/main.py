@@ -62,6 +62,8 @@ app.add_middleware(
 
 # Las mismas protecciones que el sitio principal (SecurityConfig.java): la pagina solo
 # habla con su propio servidor y no se puede incrustar en otro sitio.
+PREFIJO = "/api/indicadores"
+
 CABECERAS = {
     "Content-Security-Policy": ("default-src 'self'; script-src 'self'; "
                                 "style-src 'self' 'unsafe-inline'; "
@@ -79,6 +81,14 @@ async def _cabeceras(request: Request, call_next):
     if not request.url.path.startswith(("/docs", "/redoc")):  # Swagger usa scripts de un CDN
         for k, v in CABECERAS.items():
             respuesta.headers.setdefault(k, v)
+    # Los archivos de la pagina (HTML, CSS, JS) se revalidan siempre: sin esto el navegador los guarda
+    # por horas y, tras publicar una version nueva, se ve una mezcla de lo viejo y lo nuevo. Con
+    # "no-cache" pide cada vez y el servidor contesta 304 (sin descargar nada) si no cambiaron.
+    # Las fuentes casi nunca cambian: una semana. La API pone su propia caché (_cache).
+    ruta = request.url.path
+    if not ruta.startswith(PREFIJO) and "cache-control" not in respuesta.headers:
+        respuesta.headers["Cache-Control"] = ("public, max-age=604800" if ruta.startswith("/assets/fonts/")
+                                              else "no-cache")
     return respuesta
 
 
@@ -94,9 +104,6 @@ def _datos():
 def _cache(r: Response):
     # El navegador y los proxies reutilizan la respuesta un minuto
     r.headers["Cache-Control"] = "public, max-age=60"
-
-
-PREFIJO = "/api/indicadores"
 
 
 @app.get(PREFIJO)

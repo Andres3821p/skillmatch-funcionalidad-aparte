@@ -50,10 +50,10 @@
         <section class="indicadores-cabecera">
             <div class="container">
                 <h1>Tendencias y pronóstico</h1>
-                <p>Qué habilidades piden las empresas, quién publica más y qué se espera en las próximas semanas, con los datos de SkillMatch.</p>
+                <p>Qué habilidades piden las empresas de Cartagena, qué empresas publican más vacantes y qué se espera para las próximas semanas, con datos en vivo de SkillMatch.</p>
                 <p class="tend-aviso tend-fuente" id="tendFuente" role="status" hidden></p>
                 <p class="tend-aviso" id="tendAviso" role="status" hidden></p>
-                <p class="tend-aviso tend-espera" id="tendEspera" role="status" hidden>Estamos leyendo los datos de SkillMatch. Si el sitio estaba dormido puede tardar hasta un par de minutos la primera vez.</p>
+                <p class="tend-aviso tend-espera" id="tendEspera" role="status" hidden>Cargando los datos del mercado laboral de Cartagena. La primera carga del día puede tardar hasta un par de minutos.</p>
             </div>
         </section>
 
@@ -64,66 +64,66 @@
                     <li><span class="cifra-icono es-mar" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><span class="ic-valor" data-cifra="vacantes_abiertas">–</span><span class="ic-nombre">Vacantes abiertas</span></li>
                     <li><span class="cifra-icono es-mar" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></svg></span><span class="ic-valor" data-cifra="empresas_activas">–</span><span class="ic-nombre">Empresas activas</span></li>
                     <li><span class="cifra-icono es-chispa" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></span><span class="ic-valor" data-cifra="postulaciones_por_vacante">–</span><span class="ic-nombre">Postulaciones por vacante</span></li>
-                    <li><span class="cifra-icono es-verde" id="cifraCuartaIcono" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="ic-valor" data-cifra="dias_mediana_respuesta" id="cifraCuarta">–</span><span class="ic-nombre" id="cifraCuartaNombre">Días en responder (mediana)</span></li>
+                    <li><span class="cifra-icono es-verde" id="cifraCuartaIcono" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="ic-valor" data-cifra="dias_mediana_respuesta" id="cifraCuarta">–</span><span class="ic-nombre" id="cifraCuartaNombre">Días hasta recibir respuesta (mediana)</span></li>
                 </ul>
 
-                <!-- 1. Las tres tarjetas -->
+                <!-- 1. Pronóstico (lo que más interesa tras las cifras) -->
                 <div class="tend-seccion">
-                    <h2>Lo que pide el mercado</h2>
-                    <p>Quién publica y qué habilidades se piden y se tienen.</p>
+                    <h2>Pronóstico de las próximas semanas</h2>
+                    <p>Un modelo estadístico proyecta las semanas siguientes a partir de las pasadas. La banda naranja es el rango probable: es una estimación, no una garantía.</p>
+                </div>
+                <div class="indicadores-grid">
+                    <article class="indicador" aria-labelledby="tPronVacTitulo">
+                        <h2 id="tPronVacTitulo">Vacantes publicadas por semana</h2>
+                        <p class="indicador-nota">Semanas ya cerradas y estimación de las siguientes.</p>
+                        <div class="grafica" id="tPronVacantes"></div>
+                    </article>
+                    <article class="indicador" aria-labelledby="tPronPosTitulo">
+                        <h2 id="tPronPosTitulo">Postulaciones por semana</h2>
+                        <p class="indicador-nota">Personas que se postulan cada semana.</p>
+                        <div class="grafica" id="tPronPostulaciones"></div>
+                    </article>
+                </div>
+
+                <!-- 2. Demanda del mercado: las tres tarjetas -->
+                <div class="tend-seccion">
+                    <h2>Demanda del mercado laboral</h2>
+                    <p>Qué habilidades buscan las empresas, quiénes publican más y qué habilidades tienen las personas.</p>
                 </div>
                 <div class="tend-trio">
                     <article class="indicador" aria-labelledby="tDemTitulo">
-                        <h2 id="tDemTitulo">Habilidades más solicitadas por empresas</h2>
-                        <p class="indicador-nota">En las vacantes abiertas. Toca una para ver sus vacantes en SkillMatch.</p>
+                        <h2 id="tDemTitulo">Habilidades más pedidas por las empresas</h2>
+                        <p class="indicador-nota" id="tDemandadasNota">En las vacantes abiertas. Toca una para ver sus vacantes en SkillMatch.</p>
                         <ul class="ib-lista" id="tDemandadas"></ul>
                     </article>
                     <article class="indicador" aria-labelledby="tEmpTitulo">
                         <h2 id="tEmpTitulo">Empresas más activas</h2>
-                        <p class="indicador-nota">Con más vacantes publicadas en los últimos 90 días.</p>
+                        <p class="indicador-nota">Empresas con más vacantes publicadas en los últimos 90 días.</p>
                         <ul class="ib-lista" id="tEmpresas"></ul>
                     </article>
                     <article class="indicador" aria-labelledby="tUsuTitulo">
-                        <h2 id="tUsuTitulo">Habilidades más usadas por usuarios</h2>
-                        <p class="indicador-nota">Entre las personas registradas. Solo totales, nunca datos de alguien en particular.</p>
+                        <h2 id="tUsuTitulo">Habilidades más comunes entre las personas</h2>
+                        <p class="indicador-nota" id="tUsuariosNota">Entre las personas registradas. Solo totales, nunca datos de alguien en particular.</p>
                         <ul class="ib-lista" id="tUsuarios"></ul>
                     </article>
                 </div>
 
-                <!-- 2. Brecha -->
+                <!-- 3. Brecha de talento -->
                 <div class="tend-seccion">
-                    <h2>¿Falta o sobra talento?</h2>
-                    <p>Compara el porcentaje de vacantes que piden cada habilidad con el de personas que la tienen: a la derecha lo que hace falta, a la izquierda lo que sobra.</p>
+                    <h2>Brecha de talento: ¿qué falta y qué sobra?</h2>
+                    <p>Compara el porcentaje de vacantes que piden cada habilidad con el de personas que la tienen. A la derecha, lo que hace falta; a la izquierda, lo que sobra.</p>
                 </div>
                 <article class="indicador indicador-ancho" aria-labelledby="tBrechaTitulo">
-                    <h2 id="tBrechaTitulo" class="sr-only">Brecha entre lo que piden las empresas y lo que tienen las personas</h2>
+                    <h2 id="tBrechaTitulo" class="sr-only">Brecha entre las habilidades que piden las empresas y las que tienen las personas</h2>
                     <div class="tend-estado" id="tBrechaEstado"></div>
                     <!-- tendencias.js dibuja aquí el resumen y la tabla con barras desde el centro -->
                     <div class="brecha" id="tBrecha"></div>
                 </article>
 
-                <!-- 3. Pronostico -->
+                <!-- 4. Habilidades en ascenso y descenso -->
                 <div class="tend-seccion">
-                    <h2>Qué se espera las próximas semanas</h2>
-                    <p>Un modelo estadístico mira las semanas pasadas y proyecta las siguientes. La banda naranja es el rango probable: nada de esto es una promesa.</p>
-                </div>
-                <div class="indicadores-grid">
-                    <article class="indicador" aria-labelledby="tPronVacTitulo">
-                        <h2 id="tPronVacTitulo">Vacantes publicadas por semana</h2>
-                        <p class="indicador-nota">Lo que pasó y lo que se espera.</p>
-                        <div class="grafica" id="tPronVacantes"></div>
-                    </article>
-                    <article class="indicador" aria-labelledby="tPronPosTitulo">
-                        <h2 id="tPronPosTitulo">Postulaciones por semana</h2>
-                        <p class="indicador-nota">Cuántas personas se postulan cada semana.</p>
-                        <div class="grafica" id="tPronPostulaciones"></div>
-                    </article>
-                </div>
-
-                <!-- 4. Habilidades que cambian -->
-                <div class="tend-seccion">
-                    <h2>Habilidades que están cambiando</h2>
-                    <p>Cuáles aparecen cada vez más o menos en las vacantes de las últimas semanas.</p>
+                    <h2>Habilidades en ascenso y en descenso</h2>
+                    <p>Cuáles se piden cada vez más o menos en las vacantes de las últimas semanas.</p>
                 </div>
                 <article class="indicador indicador-ancho" aria-labelledby="tCambioTitulo">
                     <h2 id="tCambioTitulo" class="sr-only">Habilidades que suben o bajan en las vacantes</h2>
@@ -141,33 +141,25 @@
                     <p class="indicador-nota tn-nota" id="tCambioNota"></p>
                 </article>
 
-                <!-- 5. Otros -->
+                <!-- 5. Salarios y estado de las postulaciones -->
                 <div class="tend-seccion">
                     <h2>Salarios y postulaciones</h2>
-                    <p>Cuánto se ofrece según la experiencia y en qué estado están las postulaciones.</p>
+                    <p>Cuánto se ofrece según la experiencia y en qué etapa están las postulaciones enviadas.</p>
                 </div>
                 <div class="indicadores-grid">
                     <article class="indicador" aria-labelledby="tSalTitulo">
                         <h2 id="tSalTitulo">Salario típico según la experiencia</h2>
-                        <p class="indicador-nota">Mediana del valor más bajo del rango que publica cada empresa.</p>
+                        <p class="indicador-nota">Mediana del salario mínimo que publican las empresas, según el nivel de experiencia.</p>
                         <ul class="ib-lista" id="tSalarios"></ul>
                     </article>
                     <article class="indicador" aria-labelledby="tEstTitulo">
                         <h2 id="tEstTitulo">Estado de las postulaciones</h2>
-                        <p class="indicador-nota">Qué pasó con las postulaciones enviadas.</p>
+                        <p class="indicador-nota">Cómo van las postulaciones enviadas: pendientes, revisadas, aceptadas o rechazadas.</p>
                         <ul class="ib-lista" id="tEstados"></ul>
                     </article>
                 </div>
 
                 <p class="indicadores-hora" id="tendHora"></p>
-
-                <aside class="indicadores-powerbi" aria-labelledby="tMetodoTitulo">
-                    <div>
-                        <h2 id="tMetodoTitulo">Cómo se calcula el pronóstico</h2>
-                        <p>Se prueban tres modelos con semanas ya pasadas y gana el que menos se equivoca; si ninguno supera al promedio de las últimas 4 semanas, se usa ese promedio. La semana en curso no cuenta porque está incompleta.</p>
-                    </div>
-                    <a class="btn btn-secondary btn-small" href="https://skillmatch-yz37.onrender.com/pages/dashboard.html">Indicadores del mercado</a>
-                </aside>
             </div>
         </section>
     </main>

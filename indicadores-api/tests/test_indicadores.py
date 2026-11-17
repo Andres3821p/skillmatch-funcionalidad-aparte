@@ -45,7 +45,9 @@ def test_habilidades_una_vez_por_vacante_y_une_escrituras(construir):
     r = ind.habilidades_demandadas(d)
     assert r["base"] == 2
     assert {i["nombre"].lower(): i["valor"] for i in r["items"]} == {"node.js": 2, "python": 1}
-    assert r["items"][0]["porcentaje"] == 100.0
+    # El porcentaje es la parte de las 3 menciones (2 + 1), no de las 2 vacantes: asi suman 100
+    assert r["menciones"] == 3
+    assert [i["porcentaje"] for i in r["items"]] == [66.7, 33.3]
 
 
 def test_ranking_de_personas_oculta_habilidades_con_menos_de_3(construir):
@@ -157,3 +159,36 @@ def test_empresas_activas_suman_100_con_otras_empresas(construir):
     todas = ind.empresas_activas(d, top=3)
     assert len(todas["items"]) == 3 and not any(i.get("otras") for i in todas["items"])
     assert round(sum(i["porcentaje"] for i in todas["items"]), 6) == 100.0
+
+
+def test_habilidades_suman_100_con_otras_habilidades(construir):
+    e = empresa("Acme")
+    jobs = [doc_job(e["_id"], hs) for hs in (["A", "B", "C"], ["A", "B"], ["A", "D"], ["E"], ["F", "A"])]
+    d = construir(jobs=jobs, empresas=[e])
+    r = ind.habilidades_demandadas(d, top=2)
+    assert r["base"] == 5 and r["menciones"] == 10
+    assert [i["nombre"] for i in r["items"]] == ["A", "B", "Otras habilidades"]
+    otras = r["items"][-1]
+    assert otras["otras"] is True and otras["valor"] == 4 and otras["cantidad"] == 4
+    # Los valores suman el total de menciones y los porcentajes, exactamente 100
+    assert sum(i["valor"] for i in r["items"]) == r["menciones"]
+    assert round(sum(i["porcentaje"] for i in r["items"]), 6) == 100.0
+    # Si todas caben en el top no hay fila "Otras habilidades"
+    todas = ind.habilidades_demandadas(d, top=10)
+    assert not any(i.get("otras") for i in todas["items"])
+    assert round(sum(i["porcentaje"] for i in todas["items"]), 6) == 100.0
+
+
+def test_habilidades_de_personas_suman_100_y_no_cuentan_las_raras(construir):
+    personas = [persona("SQL", "Excel", "Rara") for _ in range(3)] + [persona("SQL", "Excel"), persona("SQL")]
+    r = ind.habilidades_usuarios(construir(usuarios=personas), top=1)
+    assert [i["nombre"] for i in r["items"]] == ["SQL", "Otras habilidades"]
+    assert r["menciones"] == 5 + 4 + 3                      # SQL 5, Excel 4, Rara 3 (tiene 3 personas: se cuenta)
+    assert round(sum(i["porcentaje"] for i in r["items"]), 6) == 100.0
+
+
+def test_habilidad_con_menos_de_3_personas_no_entra_ni_en_otras(construir):
+    personas = [persona("SQL") for _ in range(3)] + [persona("Unica")]
+    r = ind.habilidades_usuarios(construir(usuarios=personas), top=5)
+    assert [i["nombre"] for i in r["items"]] == ["SQL"]
+    assert r["menciones"] == 3 and r["items"][0]["porcentaje"] == 100.0

@@ -80,3 +80,14 @@ def test_si_mongo_falla_despues_de_cargar_sirve_lo_ultimo(main, cliente):
     estado["falla"] = True
     r = cliente.get("/api/indicadores/resumen")
     assert r.status_code == 200 and r.json()["desactualizado"] is True
+
+
+def test_la_pagina_se_revalida_siempre_y_las_fuentes_se_guardan(cliente):
+    # Sin esto, tras publicar una version nueva el navegador mezclaba CSS/JS viejos con el HTML nuevo
+    for ruta in ("/", "/assets/css/app.css", "/assets/js/tendencias.js"):
+        r = cliente.get(ruta)
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-cache", ruta
+    fuente = cliente.get("/assets/fonts/instrument-sans-latin.woff2")
+    assert fuente.status_code == 200 and fuente.headers["cache-control"] == "public, max-age=604800"
+    # La API conserva su propia regla (un minuto)
+    assert cliente.get("/api/indicadores/resumen").headers["cache-control"] == "public, max-age=60"

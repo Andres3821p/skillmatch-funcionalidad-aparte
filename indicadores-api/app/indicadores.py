@@ -73,24 +73,43 @@ def contar_habilidades(listas) -> tuple[list[tuple[str, int]], int]:
     return ranking, total
 
 
-def _barras(ranking, total, top):
-    return [{"nombre": n, "valor": v, "porcentaje": _pct(v, total)} for n, v in ranking[:top]]
+def _barras(ranking, top):
+    """El top de habilidades y una fila "Otras habilidades" con todas las demás.
+
+    "valor" es cuantas veces se menciona la habilidad (una vez por vacante o por persona). El
+    porcentaje es la parte que le toca de TODAS las menciones, no de las vacantes: una vacante pide
+    varias habilidades, y contado contra las vacantes los porcentajes sumarian mucho mas de 100.
+    Asi los valores suman el total de menciones y los porcentajes suman exactamente 100.
+    Devuelve (filas, total_de_menciones).
+    """
+    menciones = sum(v for _, v in ranking)
+    filas = [{"nombre": n, "valor": v} for n, v in ranking[:top]]
+    resto = ranking[top:]
+    if resto:
+        filas.append({"nombre": "Otras habilidades", "otras": True, "valor": sum(v for _, v in resto),
+                      "cantidad": len(resto)})
+    for f, p in zip(filas, _repartir_pct([f["valor"] for f in filas])):
+        f["porcentaje"] = p
+    return filas, menciones
 
 
 # ---------------------------------------------------------------- tres tarjetas
 
 def habilidades_demandadas(d: Datos, top: int = 10) -> dict:
     ranking, total = contar_habilidades(d.abiertas["habilidades"])
-    return {"base": total, "unidad": "vacantes abiertas", "items": _barras(ranking, total, top)}
+    filas, menciones = _barras(ranking, top)
+    return {"base": total, "menciones": menciones, "unidad": "vacantes abiertas", "items": filas}
 
 
 def habilidades_usuarios(d: Datos, top: int = 10) -> dict:
     if not d.con_personas:
         return {"disponible": False, "motivo": MOTIVO_PERSONAS, "base": 0, "items": []}
     ranking, total = contar_habilidades(d.habilidades_usuarios)
+    # Solo cuentan las habilidades que tienen al menos MIN_PERSONAS: las raras no entran ni en "Otras"
     visibles = [(n, v) for n, v in ranking if v >= MIN_PERSONAS]
-    return {"disponible": True, "base": total, "unidad": "personas registradas",
-            "items": _barras(visibles, total, top)}
+    filas, menciones = _barras(visibles, top)
+    return {"disponible": True, "base": total, "menciones": menciones, "unidad": "personas registradas",
+            "items": filas}
 
 
 def empresas_activas(d: Datos, top: int = 10, hoy: datetime | None = None, dias: int = 90) -> dict:

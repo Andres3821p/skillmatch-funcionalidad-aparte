@@ -103,7 +103,7 @@
     function revelarBloques() {
         if (QUIETO || !('IntersectionObserver' in window)) return;
         const bloques = document.querySelectorAll('.tend-seccion, .indicadores-cifras > li, .tend-trio > .indicador, ' +
-            '.indicadores-grid > .indicador, .indicador-ancho, .indicadores-powerbi');
+            '.indicadores-grid > .indicador, .indicador-ancho');
         document.documentElement.classList.add('con-movimiento');
         const io = new IntersectionObserver(entradas => {
             let orden = 0;
@@ -222,16 +222,32 @@
 
     // Un indicador que la fuente de datos no permite calcular trae { disponible: false, motivo }
     const noDisponible = (el, d) => {
-        if (d && d.disponible === false) { vacio(el, d.motivo || 'Este indicador no está disponible.'); return true; }
+        if (d && d.disponible === false) { vacio(el, d.motivo || 'Este indicador no está disponible con la fuente de datos actual.'); return true; }
         return false;
     };
 
     // ---- Cada tarjeta ----
 
-    const dibujarDemandadas = (el, d) =>
-        barras(el, d.items.map(i => ({ ...i, enlace: enlaceHabilidad(i.nombre) })), d.base, { rango: true });
+    // Las habilidades se cuentan por menciones: una vacante (o una persona) pide varias, así que el
+    // porcentaje es la parte que le toca a cada una del total de menciones y todo suma 100 %.
+    // El total se escribe en la nota de la tarjeta, para que se vea de dónde sale cada número.
+    const notaMenciones = (id, texto) => { const n = document.getElementById(id); if (n) n.textContent = texto; };
+    const sinOtras = i => i.otras ? { ...i, sub: `${numero(i.cantidad)} habilidades más` } : i;
 
-    const dibujarUsuarios = (el, d) => noDisponible(el, d) || barras(el, d.items, d.base, { rango: true });
+    const dibujarDemandadas = (el, d) => {
+        notaMenciones('tDemandadasNota',
+            `En las ${numero(d.base)} vacantes abiertas hay ${numero(d.menciones)} menciones de habilidades (cada vacante pide varias). ` +
+            'El porcentaje es la parte de ese total y suma 100 %. Toca una para ver sus vacantes.');
+        barras(el, d.items.map(i => i.otras ? sinOtras(i) : { ...i, enlace: enlaceHabilidad(i.nombre) }), d.base, { rango: true });
+    };
+
+    const dibujarUsuarios = (el, d) => {
+        if (noDisponible(el, d)) return;
+        notaMenciones('tUsuariosNota',
+            `Entre ${numero(d.base)} personas hay ${numero(d.menciones)} menciones de habilidades. El porcentaje es la parte de ese total y suma 100 %. ` +
+            'Solo cuentan las que tienen 3 personas o más; nunca datos individuales.');
+        barras(el, d.items.map(sinOtras), d.base, { rango: true });
+    };
 
     const dibujarEmpresas = (el, d) =>
         barras(el, d.items.map(i => ({
@@ -390,7 +406,7 @@
         filasTendencia(bajan, d.bajan, 'Ninguna habilidad bajó lo suficiente en estas semanas.');
         nota.textContent = `Se analizaron ${numero(d.vacantes_analizadas)} vacantes de las últimas ${d.semanas_analizadas} semanas completas ` +
             `y ${numero(d.habilidades_evaluadas)} habilidades. Con pocas vacantes por semana el azar pesa mucho: ` +
-            'solo es «evidencia firme» el cambio que se sostiene tras descontar las casualidades. ' +
+            'solo se marca como «evidencia firme» el cambio que se sostiene después de descartar el azar. ' +
             'En cada mini-línea, los puntos marcan la tendencia.';
     }
 
@@ -525,14 +541,14 @@
         const fuente = document.getElementById('tendFuente');
         if (fuente) {
             fuente.textContent = r.fuente === 'api'
-                ? 'Datos en vivo de SkillMatch: vacantes abiertas, empresas y totales que publica el sitio. ' +
-                  'Los indicadores que necesitan información privada de las personas o de las postulaciones aparecen como no disponibles.'
+                ? 'Datos públicos y en vivo de SkillMatch: vacantes abiertas, empresas y totales. ' +
+                  'Los indicadores que dependen de información privada de las personas o de las postulaciones no se muestran.'
                 : '';
             fuente.hidden = r.fuente !== 'api';
         }
         const avisos = [];
         if (r.fuente === 'demo') avisos.push('Estás viendo datos de demostración, inventados para probar la página. No son las cifras reales de SkillMatch.');
-        if (r.desactualizado) avisos.push('La fuente de datos no respondió: se muestran los últimos datos guardados.');
+        if (r.desactualizado) avisos.push('SkillMatch no respondió: se muestran los últimos datos guardados.');
         const aviso = document.getElementById('tendAviso');
         aviso.textContent = avisos.join(' ');
         aviso.hidden = !avisos.length;
